@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Curtain Sales Academy — ระบบอบรมฝ่ายขายผ้าม่าน</title>
+<title>Curtain Sales Academy</title>
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪟</text></svg>">
 </head>
 <body>
@@ -289,6 +289,9 @@ const CSS = `
 .mfr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--bd)}
 .btn-danger{background:var(--rd);color:#fff}.btn-danger:hover{background:#c0392b}
+
+.mfg textarea{min-height:80px;resize:vertical;font-size:13px;line-height:1.7}
+.mfg select option{background:var(--sf);color:var(--tx)}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--gn);color:#fff;padding:12px 20px;border-radius:var(--r3);font-size:14px;font-weight:600;z-index:300;animation:slideUp .3s ease-out;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 @media(max-width:768px){.lr{display:none}.ll{padding:30px}.sb{display:none}.mn{margin-left:0}.mc{padding:16px}.cg{grid-template-columns:1fr}.clr{grid-template-columns:1fr}.asr{grid-template-columns:1fr 1fr}}
 `;
@@ -396,12 +399,12 @@ function ADB({courses,setCourses,users,setUsers}) {
   const saveCourse=(form)=>{
     if(modal.type==='addCourse'){
       const newId=Math.max(...courses.map(c=>c.id),0)+1;
-      const nc={id:newId,title:form.title,subtitle:form.subtitle,icon:form.icon||'📘',color:form.color||'#6C5CE7',lessons:[],quiz:[]};
+      const nc={id:newId,title:form.title,subtitle:form.subtitle,icon:form.icon||'📘',color:form.color||'#6C5CE7',lessons:form.lessons||[],quiz:form.quiz||[]};
       setCourses([...courses,nc]);
       showToast('✅ เพิ่มคอร์สสำเร็จ!');
     } else {
-      setCourses(courses.map(c=>c.id===modal.data.id?{...c,title:form.title,subtitle:form.subtitle,icon:form.icon,color:form.color}:c));
-      showToast('✅ แก้ไขคอร์สสำเร็จ!');
+      setCourses(courses.map(c=>c.id===modal.data.id?{...c,title:form.title,subtitle:form.subtitle,icon:form.icon,color:form.color,lessons:form.lessons||c.lessons,quiz:form.quiz||c.quiz}:c));
+      showToast('✅ บันทึกสำเร็จ!');
     }
     sM(null);
   };
@@ -488,27 +491,108 @@ function ADB({courses,setCourses,users,setUsers}) {
 }
 
 function CourseModal({data,onSave,onDelete,onClose}) {
+  const [tab,sTab]=useState('info');
   const [title,sTitle]=useState(data?.title||'');
   const [subtitle,sSub]=useState(data?.subtitle||'');
   const [icon,sIcon]=useState(data?.icon||'📘');
   const [color,sColor]=useState(data?.color||'#6C5CE7');
+  const [lessons,sLessons]=useState(data?.lessons?JSON.parse(JSON.stringify(data.lessons)):[]);
+  const [quiz,sQuiz]=useState(data?.quiz?JSON.parse(JSON.stringify(data.quiz)):[]);
+  const [editLes,sEditLes]=useState(null);
+  const [editQuiz,sEditQuiz]=useState(null);
+
   const icons=['📘','🌱','🔍','🔧','🎯','🚀','💎','📐','🎨','💡','🏆','⭐'];
   const colors=['#4CAF50','#2196F3','#FF9800','#9C27B0','#E91E63','#6C5CE7','#00BCD4','#FF5722'];
-  return <div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
-    <h2>{data?'✏️ แก้ไขคอร์ส':'➕ เพิ่มคอร์สใหม่'}</h2>
-    <div className="mfg"><label>ชื่อคอร์ส</label><input value={title} onChange={e=>sTitle(e.target.value)} placeholder="เช่น พื้นฐานผ้าม่าน"/></div>
-    <div className="mfg"><label>คำอธิบายย่อ</label><input value={subtitle} onChange={e=>sSub(e.target.value)} placeholder="เช่น Foundation"/></div>
-    <div className="mfg"><label>ไอคอน</label><div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{icons.map(ic=><button key={ic} onClick={()=>sIcon(ic)} style={{fontSize:24,padding:'6px 10px',borderRadius:8,border:icon===ic?'2px solid var(--ac)':'2px solid var(--bd)',background:icon===ic?'var(--acbg)':'var(--sf2)',cursor:'pointer'}}>{ic}</button>)}</div></div>
-    <div className="mfg"><label>สี</label><div style={{display:'flex',gap:6}}>{colors.map(c=><button key={c} onClick={()=>sColor(c)} style={{width:32,height:32,borderRadius:8,background:c,border:color===c?'3px solid #fff':'3px solid transparent',cursor:'pointer',boxShadow:color===c?'0 0 0 2px var(--ac)':'none'}}/>)}</div></div>
-    {data&&<div className="mfg" style={{background:'var(--sf2)',borderRadius:8,padding:14,marginTop:8}}>
-      <div style={{fontSize:12,color:'var(--tx3)',marginBottom:4}}>📊 สถิติคอร์สนี้</div>
-      <div style={{fontSize:14}}>{data.lessons.length} บทเรียน · {data.quiz.length} ข้อ Quiz</div>
-    </div>}
+
+  // Lesson CRUD
+  const addLesson=()=>{const id=Date.now().toString();sLessons([...lessons,{id,title:'บทเรียนใหม่',content:''}]);sEditLes(lessons.length)};
+  const updateLesson=(i,field,val)=>{const n=[...lessons];n[i]={...n[i],[field]:val};sLessons(n)};
+  const removeLesson=(i)=>{if(confirm('ลบบทเรียนนี้?')){sLessons(lessons.filter((_,j)=>j!==i));if(editLes===i)sEditLes(null);else if(editLes>i)sEditLes(editLes-1)}};
+  const moveLesson=(i,dir)=>{if(i+dir<0||i+dir>=lessons.length)return;const n=[...lessons];[n[i],n[i+dir]]=[n[i+dir],n[i]];sLessons(n);if(editLes===i)sEditLes(i+dir)};
+
+  // Quiz CRUD
+  const addQuiz=()=>{sQuiz([...quiz,{q:'คำถามใหม่',opts:['ตัวเลือก A','ตัวเลือก B','ตัวเลือก C','ตัวเลือก D'],ans:0}]);sEditQuiz(quiz.length)};
+  const updateQuiz=(i,field,val)=>{const n=[...quiz];n[i]={...n[i],[field]:val};sQuiz(n)};
+  const updateQuizOpt=(qi,oi,val)=>{const n=[...quiz];n[qi]={...n[qi],opts:[...n[qi].opts]};n[qi].opts[oi]=val;sQuiz(n)};
+  const removeQuiz=(i)=>{if(confirm('ลบข้อนี้?')){sQuiz(quiz.filter((_,j)=>j!==i));if(editQuiz===i)sEditQuiz(null);else if(editQuiz>i)sEditQuiz(editQuiz-1)}};
+  const addQuizOpt=(qi)=>{const n=[...quiz];n[qi]={...n[qi],opts:[...n[qi].opts,'ตัวเลือกใหม่']};sQuiz(n)};
+  const removeQuizOpt=(qi,oi)=>{if(quiz[qi].opts.length<=2)return alert('ต้องมีอย่างน้อย 2 ตัวเลือก');const n=[...quiz];n[qi]={...n[qi],opts:n[qi].opts.filter((_,j)=>j!==oi)};if(n[qi].ans>=n[qi].opts.length)n[qi].ans=0;sQuiz(n)};
+
+  const handleSave=()=>{if(!title.trim())return alert('กรุณากรอกชื่อคอร์ส');onSave({title,subtitle,icon,color,lessons,quiz})};
+
+  return <div className="modal-overlay" onClick={onClose}><div className="modal" style={{maxWidth:720,maxHeight:'90vh'}} onClick={e=>e.stopPropagation()}>
+    <h2 style={{marginBottom:16}}>{data?<>{icon} แก้ไข: {title||data.title}</>:'➕ เพิ่มคอร์สใหม่'}</h2>
+
+    <div className="tr" style={{marginBottom:20}}>
+      <button className={`tb ${tab==='info'?'on':''}`} onClick={()=>{sTab('info');sEditLes(null);sEditQuiz(null)}}>📋 ข้อมูลทั่วไป</button>
+      <button className={`tb ${tab==='lessons'?'on':''}`} onClick={()=>{sTab('lessons');sEditQuiz(null)}}>📖 บทเรียน ({lessons.length})</button>
+      <button className={`tb ${tab==='quiz'?'on':''}`} onClick={()=>{sTab('quiz');sEditLes(null)}}>📝 Quiz ({quiz.length})</button>
+    </div>
+
+    {/* INFO TAB */}
+    {tab==='info'&&<>
+      <div className="mfg"><label>ชื่อคอร์ส</label><input value={title} onChange={e=>sTitle(e.target.value)} placeholder="เช่น พื้นฐานผ้าม่าน"/></div>
+      <div className="mfg"><label>คำอธิบายย่อ</label><input value={subtitle} onChange={e=>sSub(e.target.value)} placeholder="เช่น Foundation"/></div>
+      <div className="mfg"><label>ไอคอน</label><div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{icons.map(ic=><button key={ic} type="button" onClick={()=>sIcon(ic)} style={{fontSize:24,padding:'6px 10px',borderRadius:8,border:icon===ic?'2px solid var(--ac)':'2px solid var(--bd)',background:icon===ic?'var(--acbg)':'var(--sf2)',cursor:'pointer'}}>{ic}</button>)}</div></div>
+      <div className="mfg"><label>สี</label><div style={{display:'flex',gap:6}}>{colors.map(c=><button key={c} type="button" onClick={()=>sColor(c)} style={{width:32,height:32,borderRadius:8,background:c,border:color===c?'3px solid #fff':'3px solid transparent',cursor:'pointer',boxShadow:color===c?'0 0 0 2px var(--ac)':'none'}}/>)}</div></div>
+    </>}
+
+    {/* LESSONS TAB */}
+    {tab==='lessons'&&<>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:14}}>
+        <span style={{fontSize:13,color:'var(--tx2)'}}>จัดการบทเรียนทั้งหมดของคอร์สนี้</span>
+        <button className="btn bp bs" type="button" onClick={addLesson}>+ เพิ่มบทเรียน</button>
+      </div>
+      {lessons.length===0&&<div style={{textAlign:'center',padding:30,color:'var(--tx3)',fontSize:14}}>ยังไม่มีบทเรียน กด + เพิ่มบทเรียน</div>}
+      {lessons.map((les,i)=><div key={les.id||i} style={{marginBottom:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:editLes===i?'var(--acbg)':'var(--sf2)',border:editLes===i?'1px solid var(--ac)':'1px solid var(--bd)',borderRadius:8,cursor:'pointer'}} onClick={()=>sEditLes(editLes===i?null:i)}>
+          <span style={{fontSize:13,color:'var(--tx3)',width:24,textAlign:'center'}}>{i+1}</span>
+          <span style={{flex:1,fontSize:14,fontWeight:600}}>{les.title}</span>
+          <button type="button" onClick={e=>{e.stopPropagation();moveLesson(i,-1)}} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:14}} title="ขึ้น">▲</button>
+          <button type="button" onClick={e=>{e.stopPropagation();moveLesson(i,1)}} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:14}} title="ลง">▼</button>
+          <button type="button" onClick={e=>{e.stopPropagation();removeLesson(i)}} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:14}} title="ลบ">✕</button>
+        </div>
+        {editLes===i&&<div style={{padding:16,background:'var(--sf2)',borderRadius:'0 0 8px 8px',borderTop:'none',border:'1px solid var(--bd)',borderTop:0}}>
+          <div className="mfg"><label>ชื่อบทเรียน</label><input value={les.title} onChange={e=>updateLesson(i,'title',e.target.value)}/></div>
+          <div className="mfg"><label>เนื้อหาบทเรียน</label><textarea value={les.content} onChange={e=>updateLesson(i,'content',e.target.value)} style={{minHeight:180,fontFamily:'var(--f)',lineHeight:1.7}} placeholder="พิมพ์เนื้อหาที่นี่...&#10;&#10;ใช้ • สำหรับ bullet points&#10;ใช้บรรทัดว่างเพื่อเว้นย่อหน้า"/></div>
+          <div style={{fontSize:11,color:'var(--tx3)'}}>💡 เนื้อหาจะแสดงตามที่พิมพ์ รองรับขึ้นบรรทัดใหม่และ bullet points</div>
+        </div>}
+      </div>)}
+    </>}
+
+    {/* QUIZ TAB */}
+    {tab==='quiz'&&<>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:14}}>
+        <span style={{fontSize:13,color:'var(--tx2)'}}>จัดการแบบทดสอบ (ต้องได้ 70% จึงผ่าน)</span>
+        <button className="btn bp bs" type="button" onClick={addQuiz}>+ เพิ่มข้อ</button>
+      </div>
+      {quiz.length===0&&<div style={{textAlign:'center',padding:30,color:'var(--tx3)',fontSize:14}}>ยังไม่มี Quiz กด + เพิ่มข้อ</div>}
+      {quiz.map((q,qi)=><div key={qi} style={{marginBottom:10}}>
+        <div style={{display:'flex',alignItems:'center',gap:8,padding:'10px 14px',background:editQuiz===qi?'var(--acbg)':'var(--sf2)',border:editQuiz===qi?'1px solid var(--ac)':'1px solid var(--bd)',borderRadius:8,cursor:'pointer'}} onClick={()=>sEditQuiz(editQuiz===qi?null:qi)}>
+          <span style={{fontSize:13,color:'var(--tx3)',width:24}}>Q{qi+1}</span>
+          <span style={{flex:1,fontSize:14,fontWeight:500}}>{q.q}</span>
+          <span style={{fontSize:11,color:'var(--gn)',background:'var(--gnbg)',padding:'2px 8px',borderRadius:4}}>ตอบ: {q.opts[q.ans]?.slice(0,15)}{q.opts[q.ans]?.length>15?'...':''}</span>
+          <button type="button" onClick={e=>{e.stopPropagation();removeQuiz(qi)}} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:14}} title="ลบ">✕</button>
+        </div>
+        {editQuiz===qi&&<div style={{padding:16,background:'var(--sf2)',borderRadius:'0 0 8px 8px',border:'1px solid var(--bd)',borderTop:0}}>
+          <div className="mfg"><label>คำถาม</label><input value={q.q} onChange={e=>updateQuiz(qi,'q',e.target.value)} placeholder="พิมพ์คำถาม"/></div>
+          <div className="mfg"><label>ตัวเลือก (คลิก ✓ เพื่อเลือกคำตอบที่ถูก)</label>
+            {q.opts.map((opt,oi)=><div key={oi} style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
+              <button type="button" onClick={()=>updateQuiz(qi,'ans',oi)} style={{width:28,height:28,borderRadius:'50%',border:q.ans===oi?'2px solid var(--gn)':'2px solid var(--bd)',background:q.ans===oi?'var(--gn)':'transparent',color:q.ans===oi?'#fff':'var(--tx3)',cursor:'pointer',fontSize:12,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>{q.ans===oi?'✓':oi+1}</button>
+              <input value={opt} onChange={e=>updateQuizOpt(qi,oi,e.target.value)} style={{flex:1,padding:'8px 12px',background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13}}/>
+              <button type="button" onClick={()=>removeQuizOpt(qi,oi)} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:12,opacity:q.opts.length<=2?.3:1}} title="ลบตัวเลือก">✕</button>
+            </div>)}
+            <button type="button" onClick={()=>addQuizOpt(qi)} style={{fontSize:12,color:'var(--ac2)',background:'none',border:'1px dashed var(--bd)',borderRadius:6,padding:'6px 12px',cursor:'pointer',width:'100%',marginTop:4}}>+ เพิ่มตัวเลือก</button>
+          </div>
+        </div>}
+      </div>)}
+    </>}
+
     <div className="modal-actions">
-      {onDelete&&<button className="btn btn-danger bs" onClick={onDelete}>🗑️ ลบ</button>}
+      {onDelete&&<button className="btn btn-danger bs" type="button" onClick={onDelete}>🗑️ ลบคอร์ส</button>}
       <div style={{flex:1}}/>
-      <button className="btn bg bs" onClick={onClose}>ยกเลิก</button>
-      <button className="btn bp bs" onClick={()=>{if(!title.trim())return alert('กรุณากรอกชื่อคอร์ส');onSave({title,subtitle,icon,color})}}>{data?'💾 บันทึก':'➕ เพิ่ม'}</button>
+      <button className="btn bg bs" type="button" onClick={onClose}>ยกเลิก</button>
+      <button className="btn bp bs" type="button" onClick={handleSave}>💾 บันทึกทั้งหมด</button>
     </div>
   </div></div>;
 }
