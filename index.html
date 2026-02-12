@@ -8,22 +8,20 @@
 </head>
 <body>
 <div id="root"></div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
-
 <script type="text/babel">
 const { useState, useEffect, useCallback, useMemo } = React;
 
-const USERS = [
+let USERS_DATA = [
   { id:1, name:"สมชาย ใจดี", email:"trainee@demo.com", pass:"1234", role:"trainee", team:"ทีม A", avatar:"🧑‍💼" },
   { id:2, name:"วิภา แสงทอง", email:"sales@demo.com", pass:"1234", role:"sales", team:"ทีม A", avatar:"👩‍💼" },
   { id:3, name:"ธนา บุญมี", email:"manager@demo.com", pass:"1234", role:"manager", team:"ทีม A", avatar:"👨‍💻" },
   { id:4, name:"Admin", email:"admin@demo.com", pass:"1234", role:"admin", team:"-", avatar:"⚙️" },
 ];
 
-const LEVELS = [
+let LEVELS_DATA = [
   {
     id:1, title:"พื้นฐานผ้าม่าน", subtitle:"Foundation", icon:"🌱", color:"#4CAF50", required:true,
     lessons:[
@@ -275,6 +273,23 @@ const CSS = `
 .tr{display:flex;gap:4px;margin-bottom:24px;background:var(--sf);padding:4px;border-radius:var(--r2);border:1px solid var(--bd)}
 .tb{padding:9px 18px;border:none;background:none;font-family:var(--f);font-size:13px;font-weight:600;color:var(--tx3);border-radius:var(--r3);cursor:pointer}
 .tb:hover{color:var(--tx)}.tb.on{background:var(--ac);color:#fff}
+
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:32px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease-out;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal h2{font-family:Outfit;font-size:20px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--tx3);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px}
+.modal-close:hover{background:var(--rdbg);color:var(--rd)}
+.mfg{margin-bottom:16px}
+.mfg label{display:block;font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:5px;text-transform:uppercase;letter-spacing:.5px}
+.mfg input,.mfg select,.mfg textarea{width:100%;padding:11px 14px;background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r3);color:var(--tx);font-family:var(--f);font-size:14px}
+.mfg input:focus,.mfg select:focus,.mfg textarea:focus{outline:none;border-color:var(--ac)}
+.mfg textarea{min-height:80px;resize:vertical}
+.mfr{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;padding-top:16px;border-top:1px solid var(--bd)}
+.btn-danger{background:var(--rd);color:#fff}.btn-danger:hover{background:#c0392b}
+.toast{position:fixed;bottom:24px;right:24px;background:var(--gn);color:#fff;padding:12px 20px;border-radius:var(--r3);font-size:14px;font-weight:600;z-index:300;animation:slideUp .3s ease-out;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 @media(max-width:768px){.lr{display:none}.ll{padding:30px}.sb{display:none}.mn{margin-left:0}.mc{padding:16px}.cg{grid-template-columns:1fr}.clr{grid-template-columns:1fr}.asr{grid-template-columns:1fr 1fr}}
 `;
 
@@ -287,12 +302,14 @@ function App() {
   const [qz, setQz] = useState(false);
   const [prog, setProg] = useState({});
   const [scores, setScores] = useState({});
+  const [courses, setCourses] = useState(LEVELS_DATA);
+  const [users, setUsers] = useState(USERS_DATA);
 
   useEffect(() => { const s=document.createElement("style"); s.textContent=CSS; document.head.appendChild(s); return ()=>document.head.removeChild(s); }, []);
 
-  const lp = useCallback((lv) => { const d=lv.lessons.filter(l=>prog[l.id]).length; return Math.round(d/lv.lessons.length*100); }, [prog]);
-  const isUn = useCallback((lv) => { if(lv.id===1) return true; const p=LEVELS.find(l=>l.id===lv.id-1); return p && lp(p)===100 && (scores[p.id]||0)>=70; }, [lp, scores]);
-  const uLvl = useCallback(() => { let h=0; for(const l of LEVELS){ if(lp(l)===100 && (scores[l.id]||0)>=70) h=l.id; } return h; }, [lp, scores]);
+  const lp = useCallback((lv) => { if(!lv.lessons||!lv.lessons.length) return 0; const d=lv.lessons.filter(l=>prog[l.id]).length; return Math.round(d/lv.lessons.length*100); }, [prog]);
+  const isUn = useCallback((lv) => { if(lv.id===1) return true; const p=courses.find(l=>l.id===lv.id-1); return p && lp(p)===100 && (scores[p.id]||0)>=70; }, [lp, scores, courses]);
+  const uLvl = useCallback(() => { let h=0; for(const l of courses){ if(lp(l)===100 && (scores[l.id]||0)>=70) h=l.id; } return h; }, [lp, scores, courses]);
   const tScore = useMemo(() => { const v=Object.values(scores); return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : 0; }, [scores]);
 
   if (!user) return <Login onLogin={setUser}/>;
@@ -310,10 +327,10 @@ function App() {
       <div className="mn">
         <header className="mh"><h1 className="mt">{({dashboard:'Dashboard',courses:'หลักสูตร',calculator:'คำนวณราคา',scripts:'Script Library',resources:'Resources'})[page]}</h1>{user.role!=='admin'&&<span className="badge b-pu">Level {uLvl()}</span>}</header>
         <div className="mc">
-          {page==='dashboard'&&user.role!=='admin'&&user.role!=='manager'&&<TDB prog={prog} scores={scores} lp={lp} uLvl={uLvl} tScore={tScore} onGo={l=>{setSelLvl(l);setPage('courses')}}/>}
+          {page==='dashboard'&&user.role!=='admin'&&user.role!=='manager'&&<TDB prog={prog} scores={scores} lp={lp} uLvl={uLvl} tScore={tScore} courses={courses} onGo={l=>{setSelLvl(l);setPage('courses')}}/>}
           {page==='dashboard'&&user.role==='manager'&&<MDB/>}
-          {page==='dashboard'&&user.role==='admin'&&<ADB/>}
-          {page==='courses'&&!selLvl&&<CLvls lp={lp} isUn={isUn} scores={scores} onSel={setSelLvl}/>}
+          {page==='dashboard'&&user.role==='admin'&&<ADB courses={courses} setCourses={setCourses} users={users} setUsers={setUsers}/>}
+          {page==='courses'&&!selLvl&&<CLvls lp={lp} isUn={isUn} scores={scores} onSel={setSelLvl} courses={courses}/>}
           {page==='courses'&&selLvl&&!selLes&&!qz&&<LD level={selLvl} prog={prog} qs={scores[selLvl.id]} onBack={()=>setSelLvl(null)} onLes={setSelLes} onQz={()=>setQz(true)}/>}
           {page==='courses'&&selLvl&&selLes&&<LV les={selLes} lvl={selLvl} prog={prog} onDn={()=>setProg(p=>({...p,[selLes.id]:true}))} onBack={()=>setSelLes(null)} onNx={()=>{const i=selLvl.lessons.findIndex(l=>l.id===selLes.id);setProg(p=>({...p,[selLes.id]:true}));i<selLvl.lessons.length-1?setSelLes(selLvl.lessons[i+1]):setSelLes(null)}}/>}
           {page==='courses'&&selLvl&&qz&&<QV level={selLvl} onFin={s=>{setScores(sc=>({...sc,[selLvl.id]:s}));setQz(false)}} onBack={()=>setQz(false)}/>}
@@ -328,18 +345,18 @@ function App() {
 
 function Login({onLogin}) {
   const [e,sE]=useState("");const [p,sP]=useState("");const [er,sEr]=useState("");
-  const go=()=>{const u=USERS.find(u=>u.email===e&&u.pass===p);u?(onLogin(u),sEr("")):sEr("อีเมลหรือรหัสผ่านไม่ถูกต้อง")};
+  const go=()=>{const u=USERS_DATA.find(u=>u.email===e&&u.pass===p);u?(onLogin(u),sEr("")):sEr("อีเมลหรือรหัสผ่านไม่ถูกต้อง")};
   return <div className="app"><div className="lp"><div className="ll"><div className="lf">
     <div className="logo">🪟 Curtain<span>Academy</span></div><div className="lsub">ระบบอบรมฝ่ายขายผ้าม่าน — เข้าสู่ระบบ</div>
     <div className="fg"><label>อีเมล</label><input value={e} onChange={x=>sE(x.target.value)} placeholder="email@demo.com" onKeyDown={x=>x.key==='Enter'&&go()}/></div>
     <div className="fg"><label>รหัสผ่าน</label><input type="password" value={p} onChange={x=>sP(x.target.value)} placeholder="••••" onKeyDown={x=>x.key==='Enter'&&go()}/></div>
     <button className="lbtn" onClick={go}>เข้าสู่ระบบ</button>{er&&<div className="lerr">{er}</div>}
-    <div className="da"><h4>🔑 บัญชีทดลอง (คลิก)</h4>{USERS.map(u=><div key={u.id} className="dr" onClick={()=>{sE(u.email);sP(u.pass)}}><span>{u.avatar} {u.name}</span><span>{u.email}</span></div>)}</div>
+    <div className="da"><h4>🔑 บัญชีทดลอง (คลิก)</h4>{USERS_DATA.map(u=><div key={u.id} className="dr" onClick={()=>{sE(u.email);sP(u.pass)}}><span>{u.avatar} {u.name}</span><span>{u.email}</span></div>)}</div>
   </div></div><div className="lr"><div className="lh"><div className="ic" style={{fontSize:80}}>🪟</div><h2>Curtain Sales Academy</h2><p>เรียนรู้ทุกอย่างเรื่องผ้าม่าน ตั้งแต่ศูนย์จนขายได้</p></div></div></div></div>;
 }
 
-function TDB({prog,lp,uLvl,tScore,onGo}) {
-  const cl=Object.keys(prog).length;const tl=LEVELS.reduce((a,l)=>a+l.lessons.length,0);
+function TDB({prog,lp,uLvl,tScore,onGo,courses}) {
+  const cl=Object.keys(prog).length;const tl=courses.reduce((a,l)=>a+l.lessons.length,0);
   return <><div className="cg">
     <div className="card sc"><div className="si">📊</div><div className="sv">{Math.round(cl/tl*100)}%</div><div className="sl">ความคืบหน้า</div></div>
     <div className="card sc"><div className="si">⭐</div><div className="sv">{tScore}</div><div className="sl">คะแนน Quiz</div></div>
@@ -347,7 +364,7 @@ function TDB({prog,lp,uLvl,tScore,onGo}) {
     <div className="card sc"><div className="si">📚</div><div className="sv">{cl}/{tl}</div><div className="sl">บทเรียนจบ</div></div>
   </div>
   <h3 style={{fontSize:16,fontWeight:700,marginBottom:14}}>📌 เริ่มเรียน</h3>
-  {LEVELS.slice(0,3).map(l=>{const p=lp(l);return <div key={l.id} className="lc" onClick={()=>onGo(l)}><div className="li" style={{background:l.color+'15'}}>{l.icon}</div><div className="linf"><h3>Level {l.id}: {l.title}</h3><p>{p>0?p+'%':'เริ่มเรียน'}</p><div className="lpb"><div className="lpf" style={{width:p+'%',background:l.color}}/></div></div><button className="btn bp bs">{p>0?'เรียนต่อ →':'เริ่ม →'}</button></div>})}</>;
+  {courses.slice(0,3).map(l=>{const p=lp(l);return <div key={l.id} className="lc" onClick={()=>onGo(l)}><div className="li" style={{background:l.color+'15'}}>{l.icon}</div><div className="linf"><h3>Level {l.id}: {l.title}</h3><p>{p>0?p+'%':'เริ่มเรียน'}</p><div className="lpb"><div className="lpf" style={{width:p+'%',background:l.color}}/></div></div><button className="btn bp bs">{p>0?'เรียนต่อ →':'เริ่ม →'}</button></div>})}</>;
 }
 
 function MDB() {
@@ -366,17 +383,164 @@ function MDB() {
     {[{n:"ปิยะ",s:"฿450K"},{n:"วิภา",s:"฿380K"},{n:"สมชาย",s:"฿120K"}].map((p,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'12px 0',borderBottom:'1px solid var(--bd)'}}><span style={{fontSize:24,width:40,textAlign:'center'}}>{['🥇','🥈','🥉'][i]}</span><span style={{flex:1,fontWeight:600}}>{p.n}</span><span style={{fontFamily:'Outfit',fontWeight:700,color:'var(--ac2)'}}>{p.s}</span></div>)}</div></>;
 }
 
-function ADB() {
+function ADB({courses,setCourses,users,setUsers}) {
   const [tab,sT]=useState("stats");
-  return <><div className="tr"><button className={`tb ${tab==='stats'?'on':''}`} onClick={()=>sT('stats')}>📊 สถิติ</button><button className={`tb ${tab==='courses'?'on':''}`} onClick={()=>sT('courses')}>📚 คอร์ส</button><button className={`tb ${tab==='users'?'on':''}`} onClick={()=>sT('users')}>👥 ผู้ใช้</button></div>
-  {tab==='stats'&&<><div className="asr"><div className="as"><div className="v" style={{color:'var(--ac2)'}}>4</div><div className="l">ผู้ใช้</div></div><div className="as"><div className="v" style={{color:'var(--gn)'}}>5</div><div className="l">คอร์ส</div></div><div className="as"><div className="v" style={{color:'var(--or)'}}>21</div><div className="l">บทเรียน</div></div><div className="as"><div className="v" style={{color:'var(--pk)'}}>34</div><div className="l">Quiz</div></div></div>
-  <div className="card"><h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>📈 สถิติเข้าเรียน</h3><div style={{display:'flex',alignItems:'flex-end',gap:8,height:120}}>{[40,65,55,80,70,90,45].map((v,i)=><div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}><span style={{fontSize:11,color:'var(--tx3)'}}>{v}%</span><div style={{width:'100%',height:v+'%',background:'linear-gradient(to top,var(--ac),var(--ac2))',borderRadius:4,minHeight:4}}/><span style={{fontSize:10,color:'var(--tx3)'}}>{['จ','อ','พ','พฤ','ศ','ส','อา'][i]}</span></div>)}</div></div></>}
-  {tab==='courses'&&<div className="card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:20}}><h3 style={{fontSize:16,fontWeight:700}}>📚 คอร์ส</h3><button className="btn bp bs">+ เพิ่ม</button></div>{LEVELS.map(l=><div key={l.id} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 0',borderBottom:'1px solid var(--bd)'}}><span style={{fontSize:28}}>{l.icon}</span><div style={{flex:1}}><div style={{fontWeight:600}}>Level {l.id}: {l.title}</div><div style={{fontSize:12,color:'var(--tx3)'}}>{l.lessons.length} บทเรียน · {l.quiz.length} Quiz</div></div><button className="btn bg bs">แก้ไข</button></div>)}</div>}
-  {tab==='users'&&<div className="card"><div style={{display:'flex',justifyContent:'space-between',marginBottom:20}}><h3 style={{fontSize:16,fontWeight:700}}>👥 ผู้ใช้</h3><button className="btn bp bs">+ เพิ่ม</button></div><table className="tt"><thead><tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>จัดการ</th></tr></thead><tbody>{USERS.map(u=><tr key={u.id}><td>{u.avatar} {u.name}</td><td style={{color:'var(--tx3)'}}>{u.email}</td><td><span className="badge" style={{background:rbg(u.role),color:rcl(u.role)}}>{u.role}</span></td><td><button className="btn bg bs">แก้ไข</button></td></tr>)}</tbody></table></div>}</>;
+  const [modal,sM]=useState(null); // {type:'addCourse'|'editCourse'|'addUser'|'editUser', data?:...}
+  const [toast,sToast]=useState(null);
+
+  const showToast=(msg)=>{sToast(msg);setTimeout(()=>sToast(null),2500)};
+  const totalLessons=courses.reduce((a,c)=>a+c.lessons.length,0);
+  const totalQuiz=courses.reduce((a,c)=>a+c.quiz.length,0);
+
+  // Course CRUD
+  const saveCourse=(form)=>{
+    if(modal.type==='addCourse'){
+      const newId=Math.max(...courses.map(c=>c.id),0)+1;
+      const nc={id:newId,title:form.title,subtitle:form.subtitle,icon:form.icon||'📘',color:form.color||'#6C5CE7',lessons:[],quiz:[]};
+      setCourses([...courses,nc]);
+      showToast('✅ เพิ่มคอร์สสำเร็จ!');
+    } else {
+      setCourses(courses.map(c=>c.id===modal.data.id?{...c,title:form.title,subtitle:form.subtitle,icon:form.icon,color:form.color}:c));
+      showToast('✅ แก้ไขคอร์สสำเร็จ!');
+    }
+    sM(null);
+  };
+  const deleteCourse=(id)=>{if(confirm('ลบคอร์สนี้?')){setCourses(courses.filter(c=>c.id!==id));sM(null);showToast('🗑️ ลบคอร์สแล้ว')}};
+
+  // User CRUD
+  const saveUser=(form)=>{
+    if(modal.type==='addUser'){
+      const newId=Math.max(...users.map(u=>u.id),0)+1;
+      const av={trainee:'🧑‍💼',sales:'👩‍💼',manager:'👨‍💻',admin:'⚙️'}[form.role]||'👤';
+      const nu={id:newId,name:form.name,email:form.email,pass:form.pass||'1234',role:form.role,team:form.team||'ทีม A',avatar:av};
+      setUsers([...users,nu]);
+      showToast('✅ เพิ่มผู้ใช้สำเร็จ!');
+    } else {
+      setUsers(users.map(u=>u.id===modal.data.id?{...u,name:form.name,email:form.email,role:form.role,team:form.team}:u));
+      showToast('✅ แก้ไขผู้ใช้สำเร็จ!');
+    }
+    sM(null);
+  };
+  const deleteUser=(id)=>{if(confirm('ลบผู้ใช้นี้?')){setUsers(users.filter(u=>u.id!==id));sM(null);showToast('🗑️ ลบผู้ใช้แล้ว')}};
+
+  return <>
+    <div className="tr">
+      <button className={`tb ${tab==='stats'?'on':''}`} onClick={()=>sT('stats')}>📊 สถิติ</button>
+      <button className={`tb ${tab==='courses'?'on':''}`} onClick={()=>sT('courses')}>📚 คอร์ส</button>
+      <button className={`tb ${tab==='users'?'on':''}`} onClick={()=>sT('users')}>👥 ผู้ใช้</button>
+    </div>
+
+    {tab==='stats'&&<>
+      <div className="asr">
+        <div className="as"><div className="v" style={{color:'var(--ac2)'}}>{users.length}</div><div className="l">ผู้ใช้</div></div>
+        <div className="as"><div className="v" style={{color:'var(--gn)'}}>{courses.length}</div><div className="l">คอร์ส</div></div>
+        <div className="as"><div className="v" style={{color:'var(--or)'}}>{totalLessons}</div><div className="l">บทเรียน</div></div>
+        <div className="as"><div className="v" style={{color:'var(--pk)'}}>{totalQuiz}</div><div className="l">Quiz</div></div>
+      </div>
+      <div className="card"><h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>📈 สถิติเข้าเรียน (7 วัน)</h3>
+        <div style={{display:'flex',alignItems:'flex-end',gap:8,height:120}}>
+          {[40,65,55,80,70,90,45].map((v,i)=><div key={i} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center',gap:4}}>
+            <span style={{fontSize:11,color:'var(--tx3)'}}>{v}%</span>
+            <div style={{width:'100%',height:v+'%',background:'linear-gradient(to top,var(--ac),var(--ac2))',borderRadius:4,minHeight:4}}/>
+            <span style={{fontSize:10,color:'var(--tx3)'}}>{['จ','อ','พ','พฤ','ศ','ส','อา'][i]}</span>
+          </div>)}
+        </div>
+      </div>
+    </>}
+
+    {tab==='courses'&&<div className="card">
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:20}}>
+        <h3 style={{fontSize:16,fontWeight:700}}>📚 คอร์สทั้งหมด ({courses.length})</h3>
+        <button className="btn bp bs" onClick={()=>sM({type:'addCourse'})}>+ เพิ่มคอร์ส</button>
+      </div>
+      {courses.map(l=><div key={l.id} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 0',borderBottom:'1px solid var(--bd)'}}>
+        <span style={{fontSize:28}}>{l.icon}</span>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:600}}>Level {l.id}: {l.title}</div>
+          <div style={{fontSize:12,color:'var(--tx3)'}}>{l.lessons.length} บทเรียน · {l.quiz.length} Quiz</div>
+        </div>
+        <button className="btn bg bs" onClick={()=>sM({type:'editCourse',data:l})}>✏️ แก้ไข</button>
+      </div>)}
+      {courses.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--tx3)'}}>ยังไม่มีคอร์ส กด + เพิ่มคอร์ส</div>}
+    </div>}
+
+    {tab==='users'&&<div className="card">
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:20}}>
+        <h3 style={{fontSize:16,fontWeight:700}}>👥 ผู้ใช้ทั้งหมด ({users.length})</h3>
+        <button className="btn bp bs" onClick={()=>sM({type:'addUser'})}>+ เพิ่มผู้ใช้</button>
+      </div>
+      <table className="tt"><thead><tr><th>ชื่อ</th><th>อีเมล</th><th>บทบาท</th><th>ทีม</th><th>จัดการ</th></tr></thead>
+      <tbody>{users.map(u=><tr key={u.id}>
+        <td>{u.avatar} {u.name}</td>
+        <td style={{color:'var(--tx3)'}}>{u.email}</td>
+        <td><span className="badge" style={{background:rbg(u.role),color:rcl(u.role)}}>{u.role}</span></td>
+        <td>{u.team}</td>
+        <td><button className="btn bg bs" onClick={()=>sM({type:'editUser',data:u})}>✏️ แก้ไข</button></td>
+      </tr>)}</tbody></table>
+    </div>}
+
+    {/* MODALS */}
+    {modal&&(modal.type==='addCourse'||modal.type==='editCourse')&&<CourseModal data={modal.type==='editCourse'?modal.data:null} onSave={saveCourse} onDelete={modal.type==='editCourse'?()=>deleteCourse(modal.data.id):null} onClose={()=>sM(null)}/>}
+    {modal&&(modal.type==='addUser'||modal.type==='editUser')&&<UserModal data={modal.type==='editUser'?modal.data:null} onSave={saveUser} onDelete={modal.type==='editUser'?()=>deleteUser(modal.data.id):null} onClose={()=>sM(null)}/>}
+
+    {toast&&<div className="toast">{toast}</div>}
+  </>;
 }
 
-function CLvls({lp,isUn,scores,onSel}) {
-  return <div>{LEVELS.map(l=>{const p=lp(l);const u=isUn(l);const ps=p===100&&(scores[l.id]||0)>=70;return <div key={l.id} className={`lc ${!u?'lk':''}`} onClick={()=>u&&onSel(l)}><div className="li" style={{background:l.color+'15'}}>{l.icon}</div><div className="linf"><h3>Level {l.id}: {l.title}</h3><p>{l.subtitle} · {l.lessons.length} บทเรียน</p><div className="lpb"><div className="lpf" style={{width:p+'%',background:l.color}}/></div></div>{!u&&<span className="lbd" style={{background:'var(--sf3)',color:'var(--tx3)'}}>🔒</span>}{u&&ps&&<span className="lbd" style={{background:'var(--gnbg)',color:'var(--gn)'}}>✅ ผ่าน</span>}{u&&!ps&&<span className="lbd" style={{background:l.color+'20',color:l.color}}>{p>0?p+'%':'เริ่ม →'}</span>}</div>})}</div>;
+function CourseModal({data,onSave,onDelete,onClose}) {
+  const [title,sTitle]=useState(data?.title||'');
+  const [subtitle,sSub]=useState(data?.subtitle||'');
+  const [icon,sIcon]=useState(data?.icon||'📘');
+  const [color,sColor]=useState(data?.color||'#6C5CE7');
+  const icons=['📘','🌱','🔍','🔧','🎯','🚀','💎','📐','🎨','💡','🏆','⭐'];
+  const colors=['#4CAF50','#2196F3','#FF9800','#9C27B0','#E91E63','#6C5CE7','#00BCD4','#FF5722'];
+  return <div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
+    <h2>{data?'✏️ แก้ไขคอร์ส':'➕ เพิ่มคอร์สใหม่'}</h2>
+    <div className="mfg"><label>ชื่อคอร์ส</label><input value={title} onChange={e=>sTitle(e.target.value)} placeholder="เช่น พื้นฐานผ้าม่าน"/></div>
+    <div className="mfg"><label>คำอธิบายย่อ</label><input value={subtitle} onChange={e=>sSub(e.target.value)} placeholder="เช่น Foundation"/></div>
+    <div className="mfg"><label>ไอคอน</label><div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{icons.map(ic=><button key={ic} onClick={()=>sIcon(ic)} style={{fontSize:24,padding:'6px 10px',borderRadius:8,border:icon===ic?'2px solid var(--ac)':'2px solid var(--bd)',background:icon===ic?'var(--acbg)':'var(--sf2)',cursor:'pointer'}}>{ic}</button>)}</div></div>
+    <div className="mfg"><label>สี</label><div style={{display:'flex',gap:6}}>{colors.map(c=><button key={c} onClick={()=>sColor(c)} style={{width:32,height:32,borderRadius:8,background:c,border:color===c?'3px solid #fff':'3px solid transparent',cursor:'pointer',boxShadow:color===c?'0 0 0 2px var(--ac)':'none'}}/>)}</div></div>
+    {data&&<div className="mfg" style={{background:'var(--sf2)',borderRadius:8,padding:14,marginTop:8}}>
+      <div style={{fontSize:12,color:'var(--tx3)',marginBottom:4}}>📊 สถิติคอร์สนี้</div>
+      <div style={{fontSize:14}}>{data.lessons.length} บทเรียน · {data.quiz.length} ข้อ Quiz</div>
+    </div>}
+    <div className="modal-actions">
+      {onDelete&&<button className="btn btn-danger bs" onClick={onDelete}>🗑️ ลบ</button>}
+      <div style={{flex:1}}/>
+      <button className="btn bg bs" onClick={onClose}>ยกเลิก</button>
+      <button className="btn bp bs" onClick={()=>{if(!title.trim())return alert('กรุณากรอกชื่อคอร์ส');onSave({title,subtitle,icon,color})}}>{data?'💾 บันทึก':'➕ เพิ่ม'}</button>
+    </div>
+  </div></div>;
+}
+
+function UserModal({data,onSave,onDelete,onClose}) {
+  const [name,sName]=useState(data?.name||'');
+  const [email,sEmail]=useState(data?.email||'');
+  const [pass,sPass]=useState('');
+  const [role,sRole]=useState(data?.role||'trainee');
+  const [team,sTeam]=useState(data?.team||'ทีม A');
+  return <div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
+    <h2>{data?'✏️ แก้ไขผู้ใช้':'➕ เพิ่มผู้ใช้ใหม่'}</h2>
+    <div className="mfr">
+      <div className="mfg"><label>ชื่อ-นามสกุล</label><input value={name} onChange={e=>sName(e.target.value)} placeholder="ชื่อ นามสกุล"/></div>
+      <div className="mfg"><label>อีเมล</label><input type="email" value={email} onChange={e=>sEmail(e.target.value)} placeholder="email@company.com"/></div>
+    </div>
+    <div className="mfr">
+      <div className="mfg"><label>บทบาท</label><select value={role} onChange={e=>sRole(e.target.value)}><option value="trainee">Trainee</option><option value="sales">Sales</option><option value="manager">Manager</option><option value="admin">Admin</option></select></div>
+      <div className="mfg"><label>ทีม</label><select value={team} onChange={e=>sTeam(e.target.value)}><option>ทีม A</option><option>ทีม B</option><option>ทีม C</option></select></div>
+    </div>
+    {!data&&<div className="mfg"><label>รหัสผ่าน</label><input type="password" value={pass} onChange={e=>sPass(e.target.value)} placeholder="ตั้งรหัสผ่าน (ค่าเริ่มต้น: 1234)"/></div>}
+    <div className="modal-actions">
+      {onDelete&&<button className="btn btn-danger bs" onClick={onDelete}>🗑️ ลบ</button>}
+      <div style={{flex:1}}/>
+      <button className="btn bg bs" onClick={onClose}>ยกเลิก</button>
+      <button className="btn bp bs" onClick={()=>{if(!name.trim()||!email.trim())return alert('กรุณากรอกข้อมูลให้ครบ');onSave({name,email,pass:pass||'1234',role,team})}}>{data?'💾 บันทึก':'➕ เพิ่ม'}</button>
+    </div>
+  </div></div>;
+}
+
+function CLvls({lp,isUn,scores,onSel,courses}) {
+  return <div>{courses.map(l=>{const p=lp(l);const u=isUn(l);const ps=p===100&&(scores[l.id]||0)>=70;return <div key={l.id} className={`lc ${!u?'lk':''}`} onClick={()=>u&&onSel(l)}><div className="li" style={{background:l.color+'15'}}>{l.icon}</div><div className="linf"><h3>Level {l.id}: {l.title}</h3><p>{l.subtitle} · {l.lessons.length} บทเรียน</p><div className="lpb"><div className="lpf" style={{width:p+'%',background:l.color}}/></div></div>{!u&&<span className="lbd" style={{background:'var(--sf3)',color:'var(--tx3)'}}>🔒</span>}{u&&ps&&<span className="lbd" style={{background:'var(--gnbg)',color:'var(--gn)'}}>✅ ผ่าน</span>}{u&&!ps&&<span className="lbd" style={{background:l.color+'20',color:l.color}}>{p>0?p+'%':'เริ่ม →'}</span>}</div>})}</div>;
 }
 
 function LD({level,prog,qs,onBack,onLes,onQz}) {
@@ -435,7 +599,6 @@ function Res() {
 
 function rbg(r){return{trainee:'rgba(253,203,110,.15)',sales:'rgba(0,184,148,.15)',manager:'rgba(108,92,231,.15)',admin:'rgba(225,112,85,.15)'}[r]}
 function rcl(r){return{trainee:'#FDCB6E',sales:'#00B894',manager:'#A29BFE',admin:'#E17055'}[r]}
-
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
