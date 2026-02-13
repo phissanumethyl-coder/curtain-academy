@@ -147,13 +147,13 @@ const RAIL_PRICES = [
 
 const CSS = `
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap');
-:root{--bg:#0F1117;--sf:#1A1D27;--sf2:#242736;--sf3:#2E3142;--bd:#363950;--tx:#E8E9ED;--tx2:#9498AC;--tx3:#6B6F84;--ac:#6C5CE7;--ac2:#A29BFE;--acbg:rgba(108,92,231,.08);--gn:#00B894;--gnbg:rgba(0,184,148,.1);--or:#FDCB6E;--orbg:rgba(253,203,110,.1);--rd:#E17055;--rdbg:rgba(225,112,85,.1);--bl:#74B9FF;--blbg:rgba(116,185,255,.1);--pk:#FD79A8;--r:14px;--r2:10px;--r3:8px;--sh:0 2px 12px rgba(0,0,0,.3);--f:'IBM Plex Sans Thai','Outfit',sans-serif}
+:root{--bg:#F5F6FA;--sf:#FFFFFF;--sf2:#F0F1F5;--sf3:#E4E6EE;--bd:#D8DBE5;--tx:#1A1D2E;--tx2:#6B7086;--tx3:#9498AC;--ac:#6C5CE7;--ac2:#5A4BD4;--acbg:rgba(108,92,231,.07);--gn:#00B894;--gnbg:rgba(0,184,148,.08);--or:#E17055;--orbg:rgba(225,112,85,.08);--rd:#E74C3C;--rdbg:rgba(231,76,60,.08);--bl:#3498DB;--blbg:rgba(52,152,219,.08);--pk:#E84393;--r:14px;--r2:10px;--r3:8px;--sh:0 2px 12px rgba(0,0,0,.06);--f:'IBM Plex Sans Thai','Outfit',sans-serif}
 *{margin:0;padding:0;box-sizing:border-box}
 .app{font-family:var(--f);background:var(--bg);color:var(--tx);min-height:100vh;line-height:1.6}
 .lp{min-height:100vh;display:flex;overflow:hidden}
 .ll{flex:1;display:flex;flex-direction:column;justify-content:center;padding:60px;z-index:1}
-.lr{flex:1;background:linear-gradient(135deg,var(--ac),#4834d4);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
-.lr::before{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:rgba(255,255,255,.05);top:-100px;right:-100px}
+.lr{flex:1;background:linear-gradient(135deg,#6C5CE7,#4834d4);display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden}
+.lr::before{content:'';position:absolute;width:500px;height:500px;border-radius:50%;background:rgba(255,255,255,.1);top:-100px;right:-100px}
 .lh{text-align:center;z-index:1;position:relative;color:#fff}
 .lh .ic{font-size:80px;margin-bottom:20px}
 .lh h2{font-family:Outfit;font-size:28px;font-weight:700;margin-bottom:8px}
@@ -166,7 +166,7 @@ const CSS = `
 .fg label{display:block;font-size:12px;font-weight:600;color:var(--tx2);margin-bottom:6px;text-transform:uppercase;letter-spacing:1px}
 .fg input{width:100%;padding:14px 16px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r2);color:var(--tx);font-family:var(--f);font-size:15px}
 .fg input:focus{outline:none;border-color:var(--ac)}
-.lbtn{width:100%;padding:14px;background:var(--ac);color:#fff;border:none;border-radius:var(--r2);font-family:var(--f);font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
+.lbtn{width:100%;padding:14px;background:#6C5CE7;color:#fff;border:none;border-radius:var(--r2);font-family:var(--f);font-size:15px;font-weight:600;cursor:pointer;margin-top:8px}
 .lbtn:hover{background:#5a4bd4}
 .lerr{color:var(--rd);font-size:13px;margin-top:8px}
 .da{margin-top:32px;padding:18px;background:var(--sf);border-radius:var(--r2);border:1px solid var(--bd)}
@@ -175,7 +175,7 @@ const CSS = `
 .dr:hover{color:var(--ac2)}
 .dr span:first-child{color:var(--tx)}
 .layout{display:flex;min-height:100vh}
-.sb{width:260px;background:var(--sf);border-right:1px solid var(--bd);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
+.sb{width:260px;background:#FFFFFF;border-right:1px solid var(--bd);box-shadow:2px 0 12px rgba(0,0,0,.04);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100}
 .sb-logo{padding:24px 20px;border-bottom:1px solid var(--bd);font-family:Outfit;font-weight:800;font-size:20px}
 .sb-logo span{color:var(--ac)}
 .sb-nav{flex:1;padding:12px 10px;overflow-y:auto}
@@ -191,10 +191,10 @@ const CSS = `
 .lob{background:none;border:none;color:var(--tx3);cursor:pointer;font-size:16px;padding:6px;border-radius:6px}
 .lob:hover{background:var(--rdbg);color:var(--rd)}
 .mn{flex:1;margin-left:260px;min-height:100vh}
-.mh{padding:20px 32px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:rgba(15,17,23,.8);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50}
+.mh{padding:20px 32px;border-bottom:1px solid var(--bd);display:flex;align-items:center;justify-content:space-between;background:rgba(245,246,250,.85);backdrop-filter:blur(10px);position:sticky;top:0;z-index:50}
 .mt{font-family:Outfit;font-size:22px;font-weight:700}
 .mc{padding:28px 32px}
-.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:24px;transition:all .2s}
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--r);padding:24px;transition:all .2s;box-shadow:0 1px 4px rgba(0,0,0,.04)}
 .card:hover{border-color:var(--ac)}
 .cg{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin-bottom:24px}
 .sc{text-align:center}
@@ -274,10 +274,10 @@ const CSS = `
 .tb{padding:9px 18px;border:none;background:none;font-family:var(--f);font-size:13px;font-weight:600;color:var(--tx3);border-radius:var(--r3);cursor:pointer}
 .tb:hover{color:var(--tx)}.tb.on{background:var(--ac);color:#fff}
 
-.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}
+.modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.35);backdrop-filter:blur(4px);z-index:200;display:flex;align-items:center;justify-content:center;animation:fadeIn .2s}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 @keyframes slideUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
-.modal{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:32px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease-out;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.modal{background:#fff;border:1px solid var(--bd);border-radius:var(--r);padding:32px;width:90%;max-width:560px;max-height:85vh;overflow-y:auto;animation:slideUp .25s ease-out;box-shadow:0 20px 60px rgba(0,0,0,.15)}
 .modal h2{font-family:Outfit;font-size:20px;font-weight:700;margin-bottom:20px;display:flex;align-items:center;gap:10px}
 .modal-close{position:absolute;top:16px;right:16px;background:none;border:none;color:var(--tx3);font-size:20px;cursor:pointer;padding:4px 8px;border-radius:6px}
 .modal-close:hover{background:var(--rdbg);color:var(--rd)}
@@ -292,6 +292,17 @@ const CSS = `
 
 .mfg textarea{min-height:80px;resize:vertical;font-size:13px;line-height:1.7}
 .mfg select option{background:var(--sf);color:var(--tx)}
+
+.media-block{margin:16px 0;border-radius:10px;overflow:hidden;border:1px solid var(--bd);background:var(--sf2)}
+.media-block img{width:100%;display:block;max-height:400px;object-fit:contain;background:#f0f0f5}
+.media-block .vid-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden}
+.media-block .vid-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0}
+.media-block .caption{padding:8px 12px;font-size:12px;color:var(--tx3);text-align:center}
+.media-editor{border:1px dashed var(--bd);border-radius:8px;padding:14px;margin-bottom:10px;background:var(--sf2)}
+.media-editor .me-head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.media-editor .me-type{display:flex;gap:4px}
+.media-editor .me-type button{padding:4px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--sf);color:var(--tx2);font-size:12px;cursor:pointer;font-family:var(--f)}
+.media-editor .me-type button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--gn);color:#fff;padding:12px 20px;border-radius:var(--r3);font-size:14px;font-weight:600;z-index:300;animation:slideUp .3s ease-out;box-shadow:0 4px 20px rgba(0,0,0,.3)}
 @media(max-width:768px){.lr{display:none}.ll{padding:30px}.sb{display:none}.mn{margin-left:0}.mc{padding:16px}.cg{grid-template-columns:1fr}.clr{grid-template-columns:1fr}.asr{grid-template-columns:1fr 1fr}}
 `;
@@ -505,7 +516,7 @@ function CourseModal({data,onSave,onDelete,onClose}) {
   const colors=['#4CAF50','#2196F3','#FF9800','#9C27B0','#E91E63','#6C5CE7','#00BCD4','#FF5722'];
 
   // Lesson CRUD
-  const addLesson=()=>{const id=Date.now().toString();sLessons([...lessons,{id,title:'บทเรียนใหม่',content:''}]);sEditLes(lessons.length)};
+  const addLesson=()=>{const id=Date.now().toString();sLessons([...lessons,{id,title:'บทเรียนใหม่',content:'',media:[]}]);sEditLes(lessons.length)};
   const updateLesson=(i,field,val)=>{const n=[...lessons];n[i]={...n[i],[field]:val};sLessons(n)};
   const removeLesson=(i)=>{if(confirm('ลบบทเรียนนี้?')){sLessons(lessons.filter((_,j)=>j!==i));if(editLes===i)sEditLes(null);else if(editLes>i)sEditLes(editLes-1)}};
   const moveLesson=(i,dir)=>{if(i+dir<0||i+dir>=lessons.length)return;const n=[...lessons];[n[i],n[i+dir]]=[n[i+dir],n[i]];sLessons(n);if(editLes===i)sEditLes(i+dir)};
@@ -554,8 +565,26 @@ function CourseModal({data,onSave,onDelete,onClose}) {
         </div>
         {editLes===i&&<div style={{padding:16,background:'var(--sf2)',borderRadius:'0 0 8px 8px',borderTop:'none',border:'1px solid var(--bd)',borderTop:0}}>
           <div className="mfg"><label>ชื่อบทเรียน</label><input value={les.title} onChange={e=>updateLesson(i,'title',e.target.value)}/></div>
-          <div className="mfg"><label>เนื้อหาบทเรียน</label><textarea value={les.content} onChange={e=>updateLesson(i,'content',e.target.value)} style={{minHeight:180,fontFamily:'var(--f)',lineHeight:1.7}} placeholder="พิมพ์เนื้อหาที่นี่...&#10;&#10;ใช้ • สำหรับ bullet points&#10;ใช้บรรทัดว่างเพื่อเว้นย่อหน้า"/></div>
-          <div style={{fontSize:11,color:'var(--tx3)'}}>💡 เนื้อหาจะแสดงตามที่พิมพ์ รองรับขึ้นบรรทัดใหม่และ bullet points</div>
+          <div className="mfg"><label>เนื้อหาบทเรียน</label><textarea value={les.content} onChange={e=>updateLesson(i,'content',e.target.value)} style={{minHeight:180,fontFamily:'var(--f)',lineHeight:1.7}} placeholder="พิมพ์เนื้อหาที่นี่..."/></div>
+
+          <div className="mfg"><label>📷 รูปภาพ / วิดีโอ</label>
+            {(les.media||[]).map((m,mi)=><div key={mi} className="media-editor">
+              <div className="me-head">
+                <span style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>สื่อ #{mi+1}</span>
+                <div className="me-type">
+                  <button type="button" className={m.type==='image'?'on':''} onClick={()=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],type:'image'};updateLesson(i,'media',nm)}}>🖼️ รูป</button>
+                  <button type="button" className={m.type==='youtube'?'on':''} onClick={()=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],type:'youtube'};updateLesson(i,'media',nm)}}>▶️ YouTube</button>
+                </div>
+                <div style={{flex:1}}/>
+                <button type="button" onClick={()=>{const nm=(les.media||[]).filter((_,j)=>j!==mi);updateLesson(i,'media',nm)}} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:13}}>✕ ลบ</button>
+              </div>
+              <input value={m.url||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],url:e.target.value};updateLesson(i,'media',nm)}} placeholder={m.type==='youtube'?'วาง YouTube URL เช่น https://www.youtube.com/watch?v=...':'วาง URL รูปภาพ เช่น https://...'} style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13,marginBottom:6}}/>
+              <input value={m.caption||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],caption:e.target.value};updateLesson(i,'media',nm)}} placeholder="คำอธิบาย (ไม่บังคับ)" style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:12}}/>
+              {m.type==='image'&&m.url&&<div style={{marginTop:8,borderRadius:6,overflow:'hidden',border:'1px solid var(--bd)'}}><img src={m.url} style={{maxWidth:'100%',maxHeight:150,objectFit:'contain',display:'block',background:'var(--sf)'}} onError={e=>{e.target.style.display='none'}}/></div>}
+            </div>)}
+            <button type="button" onClick={()=>{const nm=[...(les.media||[]),{type:'image',url:'',caption:''}];updateLesson(i,'media',nm)}} style={{width:'100%',padding:'10px',border:'1px dashed var(--bd)',borderRadius:8,background:'transparent',color:'var(--ac)',cursor:'pointer',fontSize:13,fontFamily:'var(--f)'}}>+ เพิ่มรูปภาพ / วิดีโอ</button>
+          </div>
+          <div style={{fontSize:11,color:'var(--tx3)'}}>💡 รองรับ URL รูปภาพ (jpg, png, webp) และ YouTube link</div>
         </div>}
       </div>)}
     </>}
@@ -579,7 +608,7 @@ function CourseModal({data,onSave,onDelete,onClose}) {
           <div className="mfg"><label>ตัวเลือก (คลิก ✓ เพื่อเลือกคำตอบที่ถูก)</label>
             {q.opts.map((opt,oi)=><div key={oi} style={{display:'flex',gap:6,marginBottom:6,alignItems:'center'}}>
               <button type="button" onClick={()=>updateQuiz(qi,'ans',oi)} style={{width:28,height:28,borderRadius:'50%',border:q.ans===oi?'2px solid var(--gn)':'2px solid var(--bd)',background:q.ans===oi?'var(--gn)':'transparent',color:q.ans===oi?'#fff':'var(--tx3)',cursor:'pointer',fontSize:12,flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>{q.ans===oi?'✓':oi+1}</button>
-              <input value={opt} onChange={e=>updateQuizOpt(qi,oi,e.target.value)} style={{flex:1,padding:'8px 12px',background:'var(--bg)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13}}/>
+              <input value={opt} onChange={e=>updateQuizOpt(qi,oi,e.target.value)} style={{flex:1,padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13}}/>
               <button type="button" onClick={()=>removeQuizOpt(qi,oi)} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:12,opacity:q.opts.length<=2?.3:1}} title="ลบตัวเลือก">✕</button>
             </div>)}
             <button type="button" onClick={()=>addQuizOpt(qi)} style={{fontSize:12,color:'var(--ac2)',background:'none',border:'1px dashed var(--bd)',borderRadius:6,padding:'6px 12px',cursor:'pointer',width:'100%',marginTop:4}}>+ เพิ่มตัวเลือก</button>
@@ -638,8 +667,17 @@ function LD({level,prog,qs,onBack,onLes,onQz}) {
 }
 
 function LV({les,lvl,prog,onDn,onBack,onNx}) {
+  const getYTid=(url)=>{if(!url)return null;const m=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\s]+)/);return m?m[1]:null};
   return <div><button className="btn bg bs" onClick={onBack} style={{marginBottom:20}}>← กลับ</button>
-  <div className="cv"><span className="badge b-pu" style={{marginBottom:8}}>{lvl.icon} Level {lvl.id}</span><h2>{les.title}</h2><div className="cb">{les.content.split('\n').map((l,i)=>l.trim()===''?<br key={i}/>:<div key={i} style={{marginBottom:2}}>{l}</div>)}</div>
+  <div className="cv"><span className="badge b-pu" style={{marginBottom:8}}>{lvl.icon} Level {lvl.id}</span><h2>{les.title}</h2>
+
+  {(les.media||[]).map((m,i)=><div key={i} className="media-block">
+    {m.type==='image'&&m.url&&<img src={m.url} alt={m.caption||les.title}/>}
+    {m.type==='youtube'&&m.url&&<div className="vid-wrap"><iframe src={`https://www.youtube.com/embed/${getYTid(m.url)||''}`} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen/></div>}
+    {m.caption&&<div className="caption">{m.caption}</div>}
+  </div>)}
+
+  <div className="cb">{les.content.split('\n').map((l,i)=>l.trim()===''?<br key={i}/>:<div key={i} style={{marginBottom:2}}>{l}</div>)}</div>
   <div className="cn">{!prog[les.id]&&<button className="btn bgn" onClick={onDn}>✓ จบบทนี้</button>}<button className="btn bp" onClick={onNx}>ถัดไป →</button></div></div></div>;
 }
 
