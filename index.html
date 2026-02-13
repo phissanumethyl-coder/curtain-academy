@@ -904,16 +904,173 @@ function QV({level,onFin,onBack}) {
 }
 
 function Calc({isM}) {
-  const [w,sW]=useState(200);const [h,sH]=useState(240);const [f,sF]=useState(1);const [r,sR]=useState(0);const [fl,sFl]=useState(2);const [ly,sL]=useState(1);const [res,sRes]=useState(null);
-  const calc=()=>{const wm=w/100;const hm=h/100;const fw=wm*fl;const fp=FABRIC_PRICES[f].price;const rp=RAIL_PRICES[r].price;const fc=Math.ceil(fw*hm)*fp;const sc=Math.ceil(fw/1.5)*350;const rc=Math.ceil(wm)*rp;let t=(fc+sc+rc)*ly;if(ly===2)t+=Math.ceil(wm*hm)*300;sRes({t,fc,sc,rc,mg:Math.round(t*.35),fw:fw.toFixed(1),hm:hm.toFixed(1)})};
-  return <div className="clc"><div className="card" style={{marginBottom:20}}>
-    <h3 style={{fontSize:18,fontWeight:700,marginBottom:20}}>🧮 เครื่องคำนวณราคาม่าน</h3>
-    <div className="clr"><div className="clf"><label>กว้าง (ซม.)</label><input type="number" value={w} onChange={e=>sW(+e.target.value)}/></div><div className="clf"><label>สูง (ซม.)</label><input type="number" value={h} onChange={e=>sH(+e.target.value)}/></div></div>
-    <div className="clr"><div className="clf"><label>ผ้า</label><select value={f} onChange={e=>sF(+e.target.value)}>{FABRIC_PRICES.map((x,i)=><option key={i} value={i}>{x.name} ({x.price}฿/ม.)</option>)}</select></div><div className="clf"><label>ราง</label><select value={r} onChange={e=>sR(+e.target.value)}>{RAIL_PRICES.map((x,i)=><option key={i} value={i}>{x.name} ({x.price}฿/ม.)</option>)}</select></div></div>
-    <div className="clr"><div className="clf"><label>Fullness</label><select value={fl} onChange={e=>sFl(+e.target.value)}><option value={2}>จีบ x2</option><option value={1.6}>ตาไก่ x1.6</option><option value={1}>ม้วน x1</option><option value={2.2}>ลอน x2.2</option></select></div><div className="clf"><label>ชั้น</label><select value={ly} onChange={e=>sL(+e.target.value)}><option value={1}>1 ชั้น</option><option value={2}>2 ชั้น</option></select></div></div>
-    <button className="btn bp" style={{width:'100%',marginTop:8}} onClick={calc}>🧮 คำนวณ</button>
-  </div>
-  {res&&<div className="clres"><div style={{fontSize:13,color:'var(--tx2)',marginBottom:4}}>ราคาประมาณ</div><div className="pr">฿{res.t.toLocaleString()}</div><div className="dt">ผ้า: ฿{res.fc.toLocaleString()} ({res.fw}×{res.hm} ม.)<br/>เย็บ: ฿{res.sc.toLocaleString()}<br/>ราง: ฿{res.rc.toLocaleString()}</div>{isM&&<div style={{marginTop:14,padding:'12px 16px',background:'var(--gnbg)',borderRadius:8,border:'1px solid var(--gn)'}}><span style={{fontSize:12,color:'var(--gn)',fontWeight:700}}>💰 กำไร (35%): ฿{res.mg.toLocaleString()}</span></div>}<div style={{fontSize:11,color:'var(--tx3)',marginTop:10}}>⚠️ ราคาประมาณการ</div></div>}</div>;
+  const [wCm,sW]=useState(200);
+  const [hCm,sH]=useState(240);
+  const [fabric,sFab]=useState('pattern');
+  const [style,sSty]=useState('grommet');
+  const [res,sRes]=useState(null);
+  const [err,sErr]=useState('');
+
+  // Price tables: [width, hMin, hMax, price]
+  const TB_PATTERN = [
+    [1.30,0.01,1.60,140.44],[1.30,1.80,1.80,151.67],[1.30,2.00,2.20,191.00],[1.30,2.40,2.60,202.23],
+    [1.40,0.01,2.40,207.85],[1.40,2.60,2.60,219.08],
+    [1.50,0.01,2.40,235.94],[1.50,2.60,2.60,247.17],
+    [1.60,0.01,2.60,258.41],[1.70,0.01,2.60,269.64],[1.80,0.01,2.60,286.49],
+    [2.00,0.01,2.40,308.96],[2.00,2.60,2.60,314.58],
+    [2.20,0.01,2.60,320.20],[2.30,0.01,2.60,342.67],[2.40,0.01,2.60,353.90],
+    [2.50,0.01,2.60,376.37],[2.60,0.01,2.60,393.23],
+    [2.80,0.01,2.60,460.64],
+    [3.00,0.01,2.40,471.87],[3.00,2.60,2.60,483.11],
+  ];
+  const TB_SOLID = [
+    [1.30,0.01,1.60,151.67],[1.30,1.80,1.80,162.91],[1.30,2.00,2.20,207.85],[1.30,2.40,2.60,219.08],
+    [1.40,0.01,2.40,219.08],[1.40,2.60,2.60,230.32],
+    [1.50,0.01,2.40,247.17],[1.50,2.60,2.60,258.41],
+    [1.60,0.01,2.60,269.64],[1.70,0.01,2.60,275.26],[1.80,0.01,2.60,297.73],
+    [2.00,0.01,2.40,320.20],[2.00,2.60,2.60,331.43],
+    [2.20,0.01,2.60,331.43],[2.30,0.01,2.60,353.90],[2.40,0.01,2.60,365.14],
+    [2.50,0.01,2.60,393.23],[2.60,0.01,2.60,410.08],
+    [2.80,0.01,2.60,471.87],
+    [3.00,0.01,2.60,494.34],
+  ];
+  const TB_SHEER = [
+    [1.30,0.01,1.60,129.20],[1.30,1.80,1.80,134.82],[1.30,2.00,2.20,168.53],[1.30,2.40,2.60,174.14],
+    [1.40,0.01,2.40,168.53],[1.40,2.60,2.60,168.53],
+    [1.50,0.01,2.40,179.76],[1.50,2.60,2.60,185.38],
+    [1.60,0.01,2.40,196.61],[1.60,2.60,2.60,202.23],
+    [2.00,0.01,2.40,235.94],[2.00,2.60,2.60,247.17],
+    [2.50,0.01,2.60,280.88],
+    [3.00,0.01,2.60,337.05],
+  ];
+
+  // Oversize tables (height > 2.60): [wMin, wMax, hMin, hMax, price]
+  const OV_SOLID = [
+    [2.70,2.80,2.63,3.20,614.34],[2.90,3.00,2.63,3.20,654.34],[3.10,3.20,2.63,3.20,694.34],
+    [3.30,3.40,2.63,3.20,734.34],[3.50,3.60,2.63,3.20,774.34],[3.70,3.80,2.63,3.20,814.34],
+    [3.90,4.00,2.63,3.20,854.34],[4.10,4.20,2.63,3.20,594.34],[4.30,4.40,2.63,3.20,934.34],
+    [4.50,4.60,2.63,3.20,974.34],[4.70,4.80,2.63,3.20,1014.34],[4.90,5.00,2.63,3.20,1054.34],
+    [5.10,5.20,2.63,3.20,1094.34],[5.30,5.40,2.63,3.20,1134.34],
+  ];
+  const OV_PATTERN_SHEER = [
+    [2.70,2.80,2.63,3.20,580.64],[2.90,3.00,2.63,3.20,620.64],[3.10,3.20,2.63,3.20,660.64],
+    [3.30,3.40,2.63,3.20,700.64],[3.50,3.60,2.63,3.20,740.64],[3.70,3.80,2.63,3.20,780.64],
+    [3.90,4.00,2.63,3.20,820.64],[4.10,4.20,2.63,3.20,860.64],[4.30,4.40,2.63,3.20,900.64],
+    [4.50,4.60,2.63,3.20,640.64],[4.70,4.80,2.63,3.20,980.64],[4.90,5.00,2.63,3.20,1020.64],
+    [5.10,5.20,2.63,3.20,1060.64],[5.30,5.40,2.63,3.20,1100.64],
+  ];
+
+  const calc=()=>{
+    sErr('');sRes(null);
+    const w = wCm / 100; // convert cm to m
+    const h = hCm / 100;
+    if(w<1.30||h<0.01){sErr('กรุณากรอกขนาดที่ถูกต้อง (กว้างอย่างน้อย 130 ซม.)');return}
+
+    const tb = fabric==='pattern'?TB_PATTERN:fabric==='solid'?TB_SOLID:TB_SHEER;
+    const ov = fabric==='solid'?OV_SOLID:OV_PATTERN_SHEER;
+
+    // Check oversize first (h > 2.60)
+    if(h > 2.62) {
+      const row = ov.find(r => w >= r[0] && w <= r[1] && h >= r[2] && h <= r[3]);
+      if(row){sRes({price:row[4],method:'oversize',baseW:row[0]+'-'+row[1],baseH:row[2]+'-'+row[3]});return}
+      sErr('ขนาดนี้เกินตารางราคา Oversize กรุณาติดต่อร้าน');return;
+    }
+
+    // Find base price from normal table
+    // Step 1: find the matching width tier (round down to table width)
+    const widths = [...new Set(tb.map(r=>r[0]))].sort((a,b)=>a-b);
+    let baseW = null;
+    for(let k=widths.length-1;k>=0;k--){if(w >= widths[k]){baseW=widths[k];break}}
+    if(!baseW){sErr('กว้างน้อยกว่าขนาดเล็กสุด (130 ซม.)');return}
+
+    // Step 2: find height tier within that width
+    const hRows = tb.filter(r=>r[0]===baseW).sort((a,b)=>a[1]-b[1]);
+    let matched = null;
+    for(const r of hRows){if(h >= r[1] && h <= r[2]){matched=r;break}}
+
+    // If h > max height of this width, use the last height range
+    if(!matched && hRows.length > 0){
+      const lastR = hRows[hRows.length-1];
+      if(h > lastR[2]){
+        // height exceeds, calculate extra
+        matched = lastR;
+      }
+    }
+    if(!matched){sErr('ไม่พบราคาสำหรับขนาดนี้ กรุณาตรวจสอบ');return}
+
+    let basePrice = matched[3];
+    let extraW = 0;
+    let extraH = 0;
+    let method = 'table';
+
+    // Calculate extra for width beyond table width
+    const wExtra = Math.round((w - baseW) * 100); // extra cm
+    if(wExtra > 0){extraW = wExtra; basePrice += wExtra;}
+
+    // Calculate extra for height beyond matched range max
+    const hMax = matched[2];
+    if(h > hMax){
+      const hExtra = Math.round((h - hMax) * 100);
+      extraH = hExtra; basePrice += hExtra;
+    }
+
+    sRes({price:Math.round(basePrice*100)/100, method, baseW, baseH:matched[1]+'-'+matched[2], basePrice:matched[3], extraW, extraH});
+  };
+
+  const fabrics=[{k:'pattern',l:'ผ้าม่านแบบมีลาย',ic:'🎨'},{k:'solid',l:'ผ้าม่านสีพื้น',ic:'🎭'},{k:'sheer',l:'ผ้าม่านโปร่ง',ic:'🌤️'}];
+  const styles=[{k:'grommet',l:'ตาไก่'},{k:'hook',l:'ตะขอ'},{k:'rod',l:'สอดลวด'}];
+
+  return <div style={{maxWidth:600}}>
+    <div className="card" style={{marginBottom:20}}>
+      <h3 style={{fontSize:18,fontWeight:700,marginBottom:20}}>🧮 คำนวณราคาต้นทุนผ้าม่าน</h3>
+
+      <div className="mfg"><label>ชนิดผ้า</label>
+        <div style={{display:'flex',gap:8}}>{fabrics.map(f=><button key={f.k} type="button" onClick={()=>sFab(f.k)} style={{flex:1,padding:'12px 8px',borderRadius:8,border:fabric===f.k?'2px solid var(--ac)':'2px solid var(--bd)',background:fabric===f.k?'var(--acbg)':'var(--sf2)',cursor:'pointer',textAlign:'center',fontFamily:'var(--f)',fontSize:13,color:fabric===f.k?'var(--ac)':'var(--tx2)',fontWeight:fabric===f.k?700:500}}><div style={{fontSize:24,marginBottom:4}}>{f.ic}</div>{f.l}</button>)}</div>
+      </div>
+
+      <div className="mfg"><label>ประเภทผ้าม่าน</label>
+        <div style={{display:'flex',gap:8}}>{styles.map(s=><button key={s.k} type="button" onClick={()=>sSty(s.k)} style={{flex:1,padding:'10px',borderRadius:8,border:style===s.k?'2px solid var(--ac)':'2px solid var(--bd)',background:style===s.k?'var(--acbg)':'var(--sf2)',cursor:'pointer',fontFamily:'var(--f)',fontSize:13,color:style===s.k?'var(--ac)':'var(--tx2)',fontWeight:style===s.k?700:500}}>🪟 {s.l}</button>)}</div>
+      </div>
+
+      <div className="clr">
+        <div className="clf"><label>ความกว้าง (ซม.)</label><input type="number" value={wCm} onChange={e=>sW(+e.target.value)} min={130} step={1} placeholder="เช่น 200"/></div>
+        <div className="clf"><label>ความสูง (ซม.)</label><input type="number" value={hCm} onChange={e=>sH(+e.target.value)} min={1} step={1} placeholder="เช่น 240"/></div>
+      </div>
+
+      <div style={{fontSize:12,color:'var(--tx3)',margin:'8px 0 12px',display:'flex',gap:16}}>
+        <span>= กว้าง <b>{(wCm/100).toFixed(2)}</b> ม.</span>
+        <span>= สูง <b>{(hCm/100).toFixed(2)}</b> ม.</span>
+      </div>
+
+      <button className="btn bp" style={{width:'100%'}} onClick={calc}>🧮 คำนวณราคาต้นทุน</button>
+    </div>
+
+    {err&&<div className="card" style={{background:'var(--rdbg)',border:'1px solid var(--rd)',marginBottom:16}}>
+      <div style={{color:'var(--rd)',fontSize:14,fontWeight:600}}>⚠️ {err}</div>
+    </div>}
+
+    {res&&<div className="card" style={{marginBottom:16}}>
+      <div style={{textAlign:'center',marginBottom:16}}>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:4}}>ราคาต้นทุน</div>
+        <div style={{fontFamily:'Outfit',fontSize:42,fontWeight:800,color:'var(--ac)'}}>{res.price.toFixed(2)}</div>
+        <div style={{fontSize:14,color:'var(--tx2)'}}>บาท</div>
+      </div>
+
+      <div style={{background:'var(--sf2)',borderRadius:8,padding:14,fontSize:13,lineHeight:2}}>
+        <div><b>ชนิดผ้า:</b> {fabrics.find(f=>f.k===fabric).l}</div>
+        <div><b>ประเภท:</b> {styles.find(s=>s.k===style).l}</div>
+        <div><b>ขนาด:</b> {(wCm/100).toFixed(2)} × {(hCm/100).toFixed(2)} ม. ({wCm} × {hCm} ซม.)</div>
+        {res.method==='table'&&<>
+          <div style={{borderTop:'1px solid var(--bd)',marginTop:8,paddingTop:8}}><b>ราคาฐาน:</b> {res.basePrice.toFixed(2)} บาท (กว้าง {res.baseW} ม. / สูง {res.baseH} ม.)</div>
+          {res.extraW>0&&<div style={{color:'var(--or)'}}>+ เพิ่มกว้าง {res.extraW} ซม. = +{res.extraW} บาท</div>}
+          {res.extraH>0&&<div style={{color:'var(--or)'}}>+ เพิ่มสูง {res.extraH} ซม. = +{res.extraH} บาท</div>}
+        </>}
+        {res.method==='oversize'&&<div style={{color:'var(--bl)',marginTop:8}}>📐 ขนาด Oversize: {res.baseW} × {res.baseH} ม.</div>}
+      </div>
+
+      <div style={{fontSize:11,color:'var(--tx3)',marginTop:12,textAlign:'center'}}>⚠️ ราคาต้นทุนผ้าเท่านั้น ยังไม่รวมค่าเย็บ ค่าราง และค่าติดตั้ง</div>
+    </div>}
+  </div>;
 }
 
 function Scr({scripts,setScripts,isAdmin}) {
