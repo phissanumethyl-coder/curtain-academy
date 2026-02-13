@@ -20,6 +20,18 @@ let USERS_DATA = [
   { id:4, name:"Admin", email:"admin@demo.com", pass:"1234", role:"admin", team:"-", avatar:"⚙️" },
 ];
 
+
+let RES_DEFAULT = [
+  {id:1, icon:"📂", name:"แคตตาล็อกผ้าม่าน 2026", type:"PDF", url:"", desc:"แคตตาล็อกรวมผ้าม่านทุกรุ่น พร้อมรูปและราคา"},
+  {id:2, icon:"📸", name:"รูป Before-After ผลงาน", type:"ZIP", url:"", desc:"รูปผลงานจริงก่อน-หลังติดตั้ง สำหรับโชว์ลูกค้า"},
+  {id:3, icon:"📋", name:"Template ใบเสนอราคา", type:"XLSX", url:"", desc:"แบบฟอร์มใบเสนอราคามาตรฐาน"},
+  {id:4, icon:"📐", name:"แบบฟอร์มวัดหน้างาน", type:"PDF", url:"", desc:"ฟอร์มจดบันทึกการวัดหน้างาน"},
+  {id:5, icon:"🎨", name:"Swatch Book Digital", type:"PDF", url:"", desc:"ตัวอย่างผ้าแบบดิจิทัล"},
+  {id:6, icon:"📊", name:"ตารางเปรียบเทียบผ้า", type:"PDF", url:"", desc:"เปรียบเทียบคุณสมบัติผ้าทุกประเภท"},
+  {id:7, icon:"🏷️", name:"Price List Q1/2026", type:"XLSX", url:"", desc:"ราคาสินค้าอัพเดทล่าสุด"},
+  {id:8, icon:"📝", name:"สัญญารับประกันสินค้า", type:"DOCX", url:"", desc:"เอกสารรับประกันสำหรับลูกค้า"},
+];
+
 let LEVELS_DATA = [
   {
     id:1, title:"พื้นฐานผ้าม่าน", subtitle:"Foundation", icon:"🌱", color:"#4CAF50", required:true,
@@ -347,6 +359,7 @@ function App() {
   const [scores, setScores] = useState({});
   const [courses, setCourses] = useState(LEVELS_DATA);
   const [users, setUsers] = useState(USERS_DATA);
+  const [resources, setResources] = useState(RES_DEFAULT);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -358,17 +371,19 @@ function App() {
     let cancelled = false;
     async function load() {
       try {
-        const [c, u, p, s] = await Promise.all([
+        const [c, u, p, s, r] = await Promise.all([
           cloudGet('courses', null, true),
           cloudGet('users', null, true),
           cloudGet('prog', null, false),
           cloudGet('scores', null, false),
+          cloudGet('resources', null, true),
         ]);
         if (cancelled) return;
         if (c) setCourses(c);
         if (u) setUsers(u);
         if (p) setProg(p);
         if (s) setScores(s);
+        if (r) setResources(r);
       } catch(e) { console.log('load error', e); }
       if (!cancelled) setLoaded(true);
     }
@@ -397,6 +412,11 @@ function App() {
     const t = setTimeout(() => { cloudSet('scores', scores, false); }, 500);
     return () => clearTimeout(t);
   }, [scores, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { cloudSet('resources', resources, true); }, 500);
+    return () => clearTimeout(t);
+  }, [resources, loaded]);
 
   const lp = useCallback((lv) => { if(!lv.lessons||!lv.lessons.length) return 0; const d=lv.lessons.filter(l=>prog[l.id]).length; return Math.round(d/lv.lessons.length*100); }, [prog]);
   const isUn = useCallback((lv) => { if(lv.id===1) return true; const p=courses.find(l=>l.id===lv.id-1); return p && lp(p)===100 && (scores[p.id]||0)>=70; }, [lp, scores, courses]);
@@ -434,7 +454,7 @@ function App() {
           {page==='courses'&&selLvl&&qz&&<QV level={selLvl} onFin={s=>{setScores(sc=>({...sc,[selLvl.id]:s}));setQz(false)}} onBack={()=>setQz(false)}/>}
           {page==='calculator'&&<Calc isM={user.role==='manager'||user.role==='admin'}/>}
           {page==='scripts'&&<Scr/>}
-          {page==='resources'&&<Res/>}
+          {page==='resources'&&<Res resources={resources} setResources={setResources} isAdmin={user.role==='admin'}/>}
         </div>
       </div>
     </div></div>
@@ -588,17 +608,17 @@ function ADB({courses,setCourses,users,setUsers}) {
       <div style={{padding:16,border:'1px solid var(--rd)',borderRadius:8,background:'var(--rdbg)'}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--rd)'}}>🗑️ รีเซ็ตข้อมูลทั้งหมด</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>คืนค่าคอร์ส บทเรียน Quiz และผู้ใช้ทั้งหมดกลับเป็นค่าเริ่มต้น (ข้อมูลที่แก้ไขจะหายหมด)</div>
-        <button className="btn btn-danger bs" type="button" onClick={()=>{if(confirm('⚠️ ยืนยันรีเซ็ตข้อมูลทั้งหมด?\nคอร์ส บทเรียน Quiz ผู้ใช้ จะกลับเป็นค่าเริ่มต้น')){Promise.all([cloudSet('courses',LEVELS_DATA,true),cloudSet('users',USERS_DATA,true),cloudSet('prog',{},false),cloudSet('scores',{},false)]).then(()=>{setCourses(LEVELS_DATA);setUsers(USERS_DATA);setProg({});setScores({});showToast('✅ รีเซ็ตข้อมูลเรียบร้อย')})}}}>🗑️ รีเซ็ตทั้งหมด</button>
+        <button className="btn btn-danger bs" type="button" onClick={()=>{if(confirm('⚠️ ยืนยันรีเซ็ตข้อมูลทั้งหมด?\nคอร์ส บทเรียน Quiz ผู้ใช้ จะกลับเป็นค่าเริ่มต้น')){Promise.all([cloudSet('courses',LEVELS_DATA,true),cloudSet('users',USERS_DATA,true),cloudSet('prog',{},false),cloudSet('scores',{},false),cloudSet('resources',RES_DEFAULT,true)]).then(()=>{setCourses(LEVELS_DATA);setUsers(USERS_DATA);setResources(RES_DEFAULT);setProg({});setScores({});showToast('✅ รีเซ็ตข้อมูลเรียบร้อย')})}}}>🗑️ รีเซ็ตทั้งหมด</button>
       </div>
       <div style={{padding:16,border:'1px solid var(--bl)',borderRadius:8,background:'var(--blbg)',marginTop:14}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--bl)'}}>📤 Export ข้อมูล</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>ดาวน์โหลดข้อมูลทั้งหมดเป็นไฟล์ JSON เพื่อสำรองข้อมูล</div>
-        <button className="btn bg bs" type="button" onClick={()=>{const d=JSON.stringify({courses,users},null,2);const b=new Blob([d],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='curtain-academy-backup.json';a.click();URL.revokeObjectURL(u);showToast('✅ Export สำเร็จ')}}>📤 Export JSON</button>
+        <button className="btn bg bs" type="button" onClick={()=>{const d=JSON.stringify({courses,users,resources},null,2);const b=new Blob([d],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='curtain-academy-backup.json';a.click();URL.revokeObjectURL(u);showToast('✅ Export สำเร็จ')}}>📤 Export JSON</button>
       </div>
       <div style={{padding:16,border:'1px solid var(--gn)',borderRadius:8,background:'var(--gnbg)',marginTop:14}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--gn)'}}>📥 Import ข้อมูล</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>นำเข้าข้อมูลจากไฟล์ JSON ที่ Export ไว้</div>
-        <input type="file" accept=".json" style={{fontSize:13}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.courses){setCourses(d.courses);showToast('✅ Import คอร์สสำเร็จ ('+d.courses.length+' คอร์ส)')}if(d.users){setUsers(d.users)}}catch(err){alert('ไฟล์ JSON ไม่ถูกต้อง')}};r.readAsText(f)}}/>
+        <input type="file" accept=".json" style={{fontSize:13}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.courses){setCourses(d.courses);showToast('✅ Import คอร์สสำเร็จ ('+d.courses.length+' คอร์ส)')}if(d.users){setUsers(d.users)}if(d.resources){setResources(d.resources)}}catch(err){alert('ไฟล์ JSON ไม่ถูกต้อง')}};r.readAsText(f)}}/>
       </div>
     </div>}
 
@@ -823,9 +843,98 @@ function Scr() {
   return <div style={{maxWidth:800}}>{SCRIPTS_DATA.map((c,ci)=><div key={ci} className="scat"><h3>{['💬','❓','🎯','📞'][ci]} {c.cat}</h3>{c.items.map((it,ii)=>{const k=ci+'-'+ii;return <div key={k} className="si2"><h4>{it.title}</h4><p>{it.text}</p><button className="cpb" onClick={()=>{navigator.clipboard?.writeText(it.text);sCp(k);setTimeout(()=>sCp(null),2000)}}>{cp===k?'✅ คัดลอกแล้ว':'📋 คัดลอก'}</button></div>})}</div>)}</div>;
 }
 
-function Res() {
-  const items=[{i:"📂",n:"แคตตาล็อกผ้าม่าน 2026",t:"PDF",s:"12 MB"},{i:"📸",n:"รูป Before-After",t:"ZIP",s:"45 MB"},{i:"📋",n:"Template ใบเสนอราคา",t:"XLSX",s:"250 KB"},{i:"📐",n:"แบบฟอร์มวัดหน้างาน",t:"PDF",s:"1.2 MB"},{i:"🎨",n:"Swatch Book Digital",t:"PDF",s:"28 MB"},{i:"📊",n:"ตารางเปรียบเทียบผ้า",t:"PDF",s:"3 MB"},{i:"🏷️",n:"Price List Q1/2026",t:"XLSX",s:"500 KB"},{i:"📝",n:"สัญญารับประกัน",t:"DOCX",s:"80 KB"}];
-  return <div style={{maxWidth:800}}><div className="card"><h3 style={{fontSize:16,fontWeight:700,marginBottom:18}}>📁 Resource Center</h3>{items.map((it,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 0',borderBottom:i<items.length-1?'1px solid var(--bd)':'none'}}><span style={{fontSize:28}}>{it.i}</span><div style={{flex:1}}><div style={{fontWeight:600,fontSize:14}}>{it.n}</div><div style={{fontSize:12,color:'var(--tx3)'}}>{it.t} · {it.s}</div></div><button className="btn bg bs">⬇ ดาวน์โหลด</button></div>)}</div></div>;
+function Res({resources,setResources,isAdmin}) {
+  const [modal,sM]=useState(null);
+  const [toast,sToast]=useState(null);
+  const showToast=(msg)=>{sToast(msg);setTimeout(()=>sToast(null),2500)};
+  const icons=['📂','📸','📋','📐','🎨','📊','🏷️','📝','📁','🎬','🔗','📦','💼','📌'];
+  const types=['PDF','XLSX','DOCX','ZIP','PNG','JPG','MP4','LINK','อื่นๆ'];
+
+  const saveRes=(form)=>{
+    if(modal.mode==='add'){
+      const newId=Math.max(...resources.map(r=>r.id),0)+1;
+      setResources([...resources,{id:newId,...form}]);
+      showToast('✅ เพิ่มไฟล์สำเร็จ');
+    } else {
+      setResources(resources.map(r=>r.id===modal.data.id?{...r,...form}:r));
+      showToast('✅ แก้ไขสำเร็จ');
+    }
+    sM(null);
+  };
+  const delRes=(id)=>{if(confirm('ลบไฟล์นี้?')){setResources(resources.filter(r=>r.id!==id));sM(null);showToast('🗑️ ลบแล้ว')}};
+
+  return <div style={{maxWidth:800}}>
+    <div className="card">
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:18}}>
+        <h3 style={{fontSize:16,fontWeight:700}}>📁 Resource Center ({resources.length} ไฟล์)</h3>
+        {isAdmin&&<button className="btn bp bs" onClick={()=>sM({mode:'add'})}>+ เพิ่มไฟล์</button>}
+      </div>
+
+      {!isAdmin&&<div style={{padding:12,background:'var(--acbg)',borderRadius:8,marginBottom:16,fontSize:13,color:'var(--ac2)'}}>
+        💡 ต้องการเพิ่ม/แก้ไขไฟล์ กรุณาเข้าสู่ระบบด้วยบัญชี Admin
+      </div>}
+
+      {resources.length===0&&<div style={{textAlign:'center',padding:40,color:'var(--tx3)'}}>ยังไม่มีไฟล์</div>}
+
+      {resources.map((it,i)=><div key={it.id} style={{display:'flex',alignItems:'center',gap:14,padding:'14px 0',borderBottom:i<resources.length-1?'1px solid var(--bd)':'none'}}>
+        <span style={{fontSize:28}}>{it.icon}</span>
+        <div style={{flex:1}}>
+          <div style={{fontWeight:600,fontSize:14}}>{it.name}</div>
+          <div style={{fontSize:12,color:'var(--tx3)'}}>{it.type}{it.desc?' · '+it.desc:''}</div>
+          {!it.url&&<div style={{fontSize:11,color:'var(--or)',marginTop:2}}>⚠️ ยังไม่มีลิงก์</div>}
+        </div>
+        <div style={{display:'flex',gap:6}}>
+          {it.url&&<button className="btn bp bs" onClick={()=>window.open(it.url,'_blank')}>⬇ ดาวน์โหลด</button>}
+          {!it.url&&<button className="btn bg bs" disabled style={{opacity:.4}}>⬇ ไม่มีลิงก์</button>}
+          {isAdmin&&<button className="btn bg bs" onClick={()=>sM({mode:'edit',data:it})}>✏️</button>}
+        </div>
+      </div>)}
+    </div>
+
+    {modal&&<ResModal data={modal.mode==='edit'?modal.data:null} icons={icons} types={types} onSave={saveRes} onDelete={modal.mode==='edit'?()=>delRes(modal.data.id):null} onClose={()=>sM(null)}/>}
+    {toast&&<div className="toast">{toast}</div>}
+  </div>;
+}
+
+function ResModal({data,icons,types,onSave,onDelete,onClose}) {
+  const [name,sN]=useState(data?.name||'');
+  const [icon,sI]=useState(data?.icon||'📂');
+  const [type,sT]=useState(data?.type||'PDF');
+  const [url,sU]=useState(data?.url||'');
+  const [desc,sD]=useState(data?.desc||'');
+
+  return <div className="modal-overlay" onClick={onClose}><div className="modal" onClick={e=>e.stopPropagation()}>
+    <h2>{data?'✏️ แก้ไขไฟล์':'➕ เพิ่มไฟล์ใหม่'}</h2>
+
+    <div className="mfg"><label>ชื่อไฟล์</label><input value={name} onChange={e=>sN(e.target.value)} placeholder="เช่น แคตตาล็อกผ้าม่าน 2026"/></div>
+
+    <div className="mfg"><label>ไอคอน</label><div style={{display:'flex',gap:6,flexWrap:'wrap'}}>{icons.map(ic=><button key={ic} type="button" onClick={()=>sI(ic)} style={{fontSize:20,padding:'5px 8px',borderRadius:6,border:icon===ic?'2px solid var(--ac)':'2px solid var(--bd)',background:icon===ic?'var(--acbg)':'var(--sf2)',cursor:'pointer'}}>{ic}</button>)}</div></div>
+
+    <div className="mfr">
+      <div className="mfg"><label>ประเภทไฟล์</label><select value={type} onChange={e=>sT(e.target.value)}>{types.map(t=><option key={t} value={t}>{t}</option>)}</select></div>
+      <div className="mfg"><label>คำอธิบาย</label><input value={desc} onChange={e=>sD(e.target.value)} placeholder="สั้นๆ เช่น ราคาอัพเดทล่าสุด"/></div>
+    </div>
+
+    <div className="mfg">
+      <label>🔗 ลิงก์ไฟล์ (Google Drive / Dropbox / URL)</label>
+      <input value={url} onChange={e=>sU(e.target.value)} placeholder="https://drive.google.com/file/d/... หรือ URL อื่นๆ"/>
+      <div style={{fontSize:11,color:'var(--tx3)',marginTop:6,lineHeight:1.6}}>
+        💡 <b>วิธีได้ลิงก์:</b><br/>
+        • <b>Google Drive:</b> คลิกขวาที่ไฟล์ → รับลิงก์ → คัดลอกลิงก์<br/>
+        • <b>Dropbox:</b> คลิก Share → Copy link<br/>
+        • <b>อื่นๆ:</b> วาง URL ตรงที่ดาวน์โหลดไฟล์ได้
+      </div>
+    </div>
+
+    {url&&<div style={{padding:10,background:'var(--gnbg)',borderRadius:8,fontSize:13,color:'var(--gn)',marginBottom:8}}>✅ มีลิงก์แล้ว — พนักงานจะกดดาวน์โหลดได้</div>}
+
+    <div className="modal-actions">
+      {onDelete&&<button className="btn btn-danger bs" type="button" onClick={onDelete}>🗑️ ลบ</button>}
+      <div style={{flex:1}}/>
+      <button className="btn bg bs" type="button" onClick={onClose}>ยกเลิก</button>
+      <button className="btn bp bs" type="button" onClick={()=>{if(!name.trim())return alert('กรุณากรอกชื่อไฟล์');onSave({name,icon,type,url,desc})}}>💾 บันทึก</button>
+    </div>
+  </div></div>;
 }
 
 function rbg(r){return{trainee:'rgba(253,203,110,.15)',sales:'rgba(0,184,148,.15)',manager:'rgba(108,92,231,.15)',admin:'rgba(225,112,85,.15)'}[r]}
