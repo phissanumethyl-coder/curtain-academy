@@ -332,20 +332,47 @@ const LOGO_HORIZ = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My
 // shared=true means ALL users see the same data (courses, users)
 // shared=false means per-user data (progress, scores)
 
+
+// Convert sharing URLs to direct/embeddable image URLs
+function toDirectImageUrl(url) {
+  if (!url) return url;
+  // Google Drive: https://drive.google.com/file/d/FILE_ID/view?...
+  let m = url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+  // Google Drive open: https://drive.google.com/open?id=FILE_ID
+  m = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
+  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
+  // Google Drive uc: already direct
+  if (url.includes('drive.google.com/uc')) return url;
+  // Dropbox: change dl=0 to dl=1
+  if (url.includes('dropbox.com')) return url.replace('dl=0','dl=1').replace('www.dropbox.com','dl.dropboxusercontent.com');
+  return url;
+}
+
+const HAS_CLOUD = typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function';
+
 async function cloudGet(key, fallback, shared) {
   try {
-    const r = await window.storage.get(key, shared);
-    return r && r.value ? JSON.parse(r.value) : fallback;
+    if (HAS_CLOUD) {
+      const r = await window.storage.get(key, shared);
+      return r && r.value ? JSON.parse(r.value) : fallback;
+    } else {
+      const v = localStorage.getItem('ca_' + key);
+      return v ? JSON.parse(v) : fallback;
+    }
   } catch(e) { return fallback; }
 }
 
 async function cloudSet(key, val, shared) {
   try {
-    await window.storage.set(key, JSON.stringify(val), shared);
-  } catch(e) { console.log('storage write error', e); }
+    if (HAS_CLOUD) {
+      await window.storage.set(key, JSON.stringify(val), shared);
+    } else {
+      localStorage.setItem('ca_' + key, JSON.stringify(val));
+    }
+  } catch(e) {}
 }
 
-// Keep lsGet/lsSet as sync fallback for initial render
 function lsGet(key, fallback) { return fallback; }
 function lsSet(key, val) {}
 
@@ -707,13 +734,13 @@ function CourseModal({data,onSave,onDelete,onClose}) {
                 <div style={{flex:1}}/>
                 <button type="button" onClick={()=>{const nm=(les.media||[]).filter((_,j)=>j!==mi);updateLesson(i,'media',nm)}} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:13}}>✕ ลบ</button>
               </div>
-              <input value={m.url||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],url:e.target.value};updateLesson(i,'media',nm)}} placeholder={m.type==='youtube'?'วาง YouTube URL เช่น https://www.youtube.com/watch?v=...':'วาง URL รูปภาพ เช่น https://...'} style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13,marginBottom:6}}/>
+              <input value={m.url||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],url:e.target.value};updateLesson(i,'media',nm)}} placeholder={m.type==='youtube'?'วาง YouTube URL เช่น https://www.youtube.com/watch?v=...':'วาง URL รูป: Google Drive link, Imgur, หรือ URL .jpg/.png'} style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13,marginBottom:6}}/>
               <input value={m.caption||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],caption:e.target.value};updateLesson(i,'media',nm)}} placeholder="คำอธิบาย (ไม่บังคับ)" style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:12}}/>
-              {m.type==='image'&&m.url&&<div style={{marginTop:8,borderRadius:6,overflow:'hidden',border:'1px solid var(--bd)'}}><img src={m.url} style={{maxWidth:'100%',maxHeight:150,objectFit:'contain',display:'block',background:'var(--sf)'}} onError={e=>{e.target.style.display='none'}}/></div>}
+              {m.type==='image'&&m.url&&<div style={{marginTop:8,borderRadius:6,overflow:'hidden',border:'1px solid var(--bd)'}}><img src={toDirectImageUrl(m.url)} style={{maxWidth:'100%',maxHeight:150,objectFit:'contain',display:'block',background:'var(--sf)'}} onError={e=>{e.target.style.display='none'}}/></div>}
             </div>)}
             <button type="button" onClick={()=>{const nm=[...(les.media||[]),{type:'image',url:'',caption:''}];updateLesson(i,'media',nm)}} style={{width:'100%',padding:'10px',border:'1px dashed var(--bd)',borderRadius:8,background:'transparent',color:'var(--ac)',cursor:'pointer',fontSize:13,fontFamily:'var(--f)'}}>+ เพิ่มรูปภาพ / วิดีโอ</button>
           </div>
-          <div style={{fontSize:11,color:'var(--tx3)'}}>💡 รองรับ URL รูปภาพ (jpg, png, webp) และ YouTube link</div>
+          <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7}}>💡 <b>วิธีเพิ่มรูป:</b> วาง Google Drive link ได้เลย (ระบบแปลงให้อัตโนมัติ) หรือใช้ URL รูปโดยตรง (.jpg .png)<br/>📌 Google Drive: คลิกขวาไฟล์ → รับลิงก์ → ตั้ง "ทุกคนที่มีลิงก์" → วาง link ที่นี่</div>
         </div>}
       </div>)}
     </>}
@@ -801,7 +828,7 @@ function LV({les,lvl,prog,onDn,onBack,onNx}) {
   <div className="cv"><span className="badge b-pu" style={{marginBottom:8}}>{lvl.icon} Level {lvl.id}</span><h2>{les.title}</h2>
 
   {(les.media||[]).map((m,i)=><div key={i} className="media-block">
-    {m.type==='image'&&m.url&&<img src={m.url} alt={m.caption||les.title}/>}
+    {m.type==='image'&&m.url&&<img src={toDirectImageUrl(m.url)} alt={m.caption||les.title}/>}
     {m.type==='youtube'&&m.url&&<div className="vid-wrap"><iframe src={`https://www.youtube.com/embed/${getYTid(m.url)||''}`} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen/></div>}
     {m.caption&&<div className="caption">{m.caption}</div>}
   </div>)}
