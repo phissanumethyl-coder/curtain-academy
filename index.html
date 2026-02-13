@@ -304,9 +304,33 @@ const CSS = `
 .media-editor .me-type button{padding:4px 12px;border-radius:6px;border:1px solid var(--bd);background:var(--sf);color:var(--tx2);font-size:12px;cursor:pointer;font-family:var(--f)}
 .media-editor .me-type button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
 .toast{position:fixed;bottom:24px;right:24px;background:var(--gn);color:#fff;padding:12px 20px;border-radius:var(--r3);font-size:14px;font-weight:600;z-index:300;animation:slideUp .3s ease-out;box-shadow:0 4px 20px rgba(0,0,0,.3)}
+@keyframes loading{0%{width:20%;margin-left:0}50%{width:60%;margin-left:20%}100%{width:20%;margin-left:80%}}
 @media(max-width:768px){.lr{display:none}.ll{padding:30px}.sb{display:none}.mn{margin-left:0}.mc{padding:16px}.cg{grid-template-columns:1fr}.clr{grid-template-columns:1fr}.asr{grid-template-columns:1fr 1fr}}
 `;
 
+
+
+// === Cloud Persistent Storage ===
+// Uses window.storage API for cloud-based persistence
+// shared=true means ALL users see the same data (courses, users)
+// shared=false means per-user data (progress, scores)
+
+async function cloudGet(key, fallback, shared) {
+  try {
+    const r = await window.storage.get(key, shared);
+    return r && r.value ? JSON.parse(r.value) : fallback;
+  } catch(e) { return fallback; }
+}
+
+async function cloudSet(key, val, shared) {
+  try {
+    await window.storage.set(key, JSON.stringify(val), shared);
+  } catch(e) { console.log('storage write error', e); }
+}
+
+// Keep lsGet/lsSet as sync fallback for initial render
+function lsGet(key, fallback) { return fallback; }
+function lsSet(key, val) {}
 
 function App() {
   const [user, setUser] = useState(null);
@@ -318,13 +342,67 @@ function App() {
   const [scores, setScores] = useState({});
   const [courses, setCourses] = useState(LEVELS_DATA);
   const [users, setUsers] = useState(USERS_DATA);
+  const [loaded, setLoaded] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { const s=document.createElement("style"); s.textContent=CSS; document.head.appendChild(s); return ()=>document.head.removeChild(s); }, []);
+
+  // Load from cloud on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        const [c, u, p, s] = await Promise.all([
+          cloudGet('courses', null, true),
+          cloudGet('users', null, true),
+          cloudGet('prog', null, false),
+          cloudGet('scores', null, false),
+        ]);
+        if (cancelled) return;
+        if (c) setCourses(c);
+        if (u) setUsers(u);
+        if (p) setProg(p);
+        if (s) setScores(s);
+      } catch(e) { console.log('load error', e); }
+      if (!cancelled) setLoaded(true);
+    }
+    load();
+    return () => { cancelled = true; };
+  }, []);
+
+  // Auto-save to cloud (debounced, skip initial load)
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { cloudSet('courses', courses, true); }, 500);
+    return () => clearTimeout(t);
+  }, [courses, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { cloudSet('users', users, true); }, 500);
+    return () => clearTimeout(t);
+  }, [users, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { cloudSet('prog', prog, false); }, 500);
+    return () => clearTimeout(t);
+  }, [prog, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { cloudSet('scores', scores, false); }, 500);
+    return () => clearTimeout(t);
+  }, [scores, loaded]);
 
   const lp = useCallback((lv) => { if(!lv.lessons||!lv.lessons.length) return 0; const d=lv.lessons.filter(l=>prog[l.id]).length; return Math.round(d/lv.lessons.length*100); }, [prog]);
   const isUn = useCallback((lv) => { if(lv.id===1) return true; const p=courses.find(l=>l.id===lv.id-1); return p && lp(p)===100 && (scores[p.id]||0)>=70; }, [lp, scores, courses]);
   const uLvl = useCallback(() => { let h=0; for(const l of courses){ if(lp(l)===100 && (scores[l.id]||0)>=70) h=l.id; } return h; }, [lp, scores, courses]);
   const tScore = useMemo(() => { const v=Object.values(scores); return v.length ? Math.round(v.reduce((a,b)=>a+b,0)/v.length) : 0; }, [scores]);
+
+  if (!loaded) return <div className="app" style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',flexDirection:'column',gap:16}}>
+    <div style={{fontSize:48}}>🪟</div>
+    <div style={{fontFamily:'Outfit',fontSize:22,fontWeight:700}}>Curtain<span style={{color:'var(--ac)'}}>Academy</span></div>
+    <div style={{color:'var(--tx2)',fontSize:14}}>กำลังโหลดข้อมูล...</div>
+    <div style={{width:120,height:4,background:'var(--sf2)',borderRadius:2,overflow:'hidden'}}><div style={{width:'60%',height:'100%',background:'var(--ac)',borderRadius:2,animation:'loading 1.5s infinite'}}></div></div>
+  </div>;
 
   if (!user) return <Login onLogin={setUser}/>;
 
@@ -336,7 +414,7 @@ function App() {
       <aside className="sb">
         <div className="sb-logo">🪟 Curtain<span>Academy</span></div>
         <nav className="sb-nav">{nav.map((n,i) => n.dv ? <div key={i} className="ndv"/> : <div key={n.id} className={`ni ${page===n.id?'on':''}`} onClick={()=>goP(n.id)}><span className="ic">{n.ic}</span>{n.lb}</div>)}</nav>
-        <div className="su"><span className="av">{user.avatar}</span><div style={{flex:1}}><div className="nm">{user.name}</div><span className="rb" style={{background:rbg(user.role),color:rcl(user.role)}}>{user.role}</span></div><button className="lob" onClick={()=>{setUser(null);setProg({});setScores({});setPage('dashboard')}}>⏻</button></div>
+        <div className="su"><span className="av">{user.avatar}</span><div style={{flex:1}}><div className="nm">{user.name}</div><span className="rb" style={{background:rbg(user.role),color:rcl(user.role)}}>{user.role}</span></div><button className="lob" onClick={()=>{setUser(null);setPage('dashboard')}}>⏻</button></div>
       </aside>
       <div className="mn">
         <header className="mh"><h1 className="mt">{({dashboard:'Dashboard',courses:'หลักสูตร',calculator:'คำนวณราคา',scripts:'Script Library',resources:'Resources'})[page]}</h1>{user.role!=='admin'&&<span className="badge b-pu">Level {uLvl()}</span>}</header>
@@ -358,14 +436,15 @@ function App() {
 }
 
 function Login({onLogin}) {
-  const [e,sE]=useState("");const [p,sP]=useState("");const [er,sEr]=useState("");
-  const go=()=>{const u=USERS_DATA.find(u=>u.email===e&&u.pass===p);u?(onLogin(u),sEr("")):sEr("อีเมลหรือรหัสผ่านไม่ถูกต้อง")};
+  const [e,sE]=useState("");const [p,sP]=useState("");const [er,sEr]=useState("");const [demoUsers,sDU]=useState(USERS_DATA);
+  useEffect(()=>{cloudGet('users',USERS_DATA,true).then(u=>{if(u)sDU(u)});},[]);
+  const go=()=>{const u=demoUsers.find(u=>u.email===e&&u.pass===p);u?(onLogin(u),sEr("")):sEr("อีเมลหรือรหัสผ่านไม่ถูกต้อง")};
   return <div className="app"><div className="lp"><div className="ll"><div className="lf">
     <div className="logo">🪟 Curtain<span>Academy</span></div><div className="lsub">ระบบอบรมฝ่ายขายผ้าม่าน — เข้าสู่ระบบ</div>
     <div className="fg"><label>อีเมล</label><input value={e} onChange={x=>sE(x.target.value)} placeholder="email@demo.com" onKeyDown={x=>x.key==='Enter'&&go()}/></div>
     <div className="fg"><label>รหัสผ่าน</label><input type="password" value={p} onChange={x=>sP(x.target.value)} placeholder="••••" onKeyDown={x=>x.key==='Enter'&&go()}/></div>
     <button className="lbtn" onClick={go}>เข้าสู่ระบบ</button>{er&&<div className="lerr">{er}</div>}
-    <div className="da"><h4>🔑 บัญชีทดลอง (คลิก)</h4>{USERS_DATA.map(u=><div key={u.id} className="dr" onClick={()=>{sE(u.email);sP(u.pass)}}><span>{u.avatar} {u.name}</span><span>{u.email}</span></div>)}</div>
+    <div className="da"><h4>🔑 บัญชีทดลอง (คลิก)</h4>{demoUsers.map(u=><div key={u.id} className="dr" onClick={()=>{sE(u.email);sP(u.pass)}}><span>{u.avatar} {u.name}</span><span>{u.email}</span></div>)}</div>
   </div></div><div className="lr"><div className="lh"><div className="ic" style={{fontSize:80}}>🪟</div><h2>Curtain Sales Academy</h2><p>เรียนรู้ทุกอย่างเรื่องผ้าม่าน ตั้งแต่ศูนย์จนขายได้</p></div></div></div></div>;
 }
 
@@ -442,6 +521,7 @@ function ADB({courses,setCourses,users,setUsers}) {
       <button className={`tb ${tab==='stats'?'on':''}`} onClick={()=>sT('stats')}>📊 สถิติ</button>
       <button className={`tb ${tab==='courses'?'on':''}`} onClick={()=>sT('courses')}>📚 คอร์ส</button>
       <button className={`tb ${tab==='users'?'on':''}`} onClick={()=>sT('users')}>👥 ผู้ใช้</button>
+      <button className={`tb ${tab==='settings'?'on':''}`} onClick={()=>sT('settings')}>⚙️ ตั้งค่า</button>
     </div>
 
     {tab==='stats'&&<>
@@ -491,6 +571,29 @@ function ADB({courses,setCourses,users,setUsers}) {
         <td>{u.team}</td>
         <td><button className="btn bg bs" onClick={()=>sM({type:'editUser',data:u})}>✏️ แก้ไข</button></td>
       </tr>)}</tbody></table>
+    </div>}
+
+    {tab==='settings'&&<div className="card">
+      <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>⚙️ ตั้งค่าระบบ</h3>
+      <div style={{padding:16,background:'var(--sf2)',borderRadius:8,marginBottom:14}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>☁️ Cloud Storage — บันทึกอัตโนมัติ</div>
+        <div style={{fontSize:13,color:'var(--tx2)'}}>ทุกการแก้ไขจะบันทึกขึ้น Cloud Storage โดยอัตโนมัติ ข้อมูลคงอยู่ถาวร เปิดจากที่ไหนก็เห็นข้อมูลเดียวกัน (คอร์สและผู้ใช้ = ข้อมูลกลาง, ความคืบหน้า = ส่วนตัว)</div>
+      </div>
+      <div style={{padding:16,border:'1px solid var(--rd)',borderRadius:8,background:'var(--rdbg)'}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--rd)'}}>🗑️ รีเซ็ตข้อมูลทั้งหมด</div>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>คืนค่าคอร์ส บทเรียน Quiz และผู้ใช้ทั้งหมดกลับเป็นค่าเริ่มต้น (ข้อมูลที่แก้ไขจะหายหมด)</div>
+        <button className="btn btn-danger bs" type="button" onClick={()=>{if(confirm('⚠️ ยืนยันรีเซ็ตข้อมูลทั้งหมด?\nคอร์ส บทเรียน Quiz ผู้ใช้ จะกลับเป็นค่าเริ่มต้น')){Promise.all([cloudSet('courses',LEVELS_DATA,true),cloudSet('users',USERS_DATA,true),cloudSet('prog',{},false),cloudSet('scores',{},false)]).then(()=>{setCourses(LEVELS_DATA);setUsers(USERS_DATA);setProg({});setScores({});showToast('✅ รีเซ็ตข้อมูลเรียบร้อย')})}}}>🗑️ รีเซ็ตทั้งหมด</button>
+      </div>
+      <div style={{padding:16,border:'1px solid var(--bl)',borderRadius:8,background:'var(--blbg)',marginTop:14}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--bl)'}}>📤 Export ข้อมูล</div>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>ดาวน์โหลดข้อมูลทั้งหมดเป็นไฟล์ JSON เพื่อสำรองข้อมูล</div>
+        <button className="btn bg bs" type="button" onClick={()=>{const d=JSON.stringify({courses,users},null,2);const b=new Blob([d],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='curtain-academy-backup.json';a.click();URL.revokeObjectURL(u);showToast('✅ Export สำเร็จ')}}>📤 Export JSON</button>
+      </div>
+      <div style={{padding:16,border:'1px solid var(--gn)',borderRadius:8,background:'var(--gnbg)',marginTop:14}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--gn)'}}>📥 Import ข้อมูล</div>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>นำเข้าข้อมูลจากไฟล์ JSON ที่ Export ไว้</div>
+        <input type="file" accept=".json" style={{fontSize:13}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.courses){setCourses(d.courses);showToast('✅ Import คอร์สสำเร็จ ('+d.courses.length+' คอร์ส)')}if(d.users){setUsers(d.users)}}catch(err){alert('ไฟล์ JSON ไม่ถูกต้อง')}};r.readAsText(f)}}/>
+      </div>
     </div>}
 
     {/* MODALS */}
