@@ -680,7 +680,7 @@ function CourseModal({data,onSave,onDelete,onClose}) {
   const colors=['#4CAF50','#2196F3','#FF9800','#9C27B0','#E91E63','#6C5CE7','#00BCD4','#FF5722'];
 
   // Lesson CRUD
-  const addLesson=()=>{const id=Date.now().toString();sLessons([...lessons,{id,title:'บทเรียนใหม่',content:'',media:[]}]);sEditLes(lessons.length)};
+  const addLesson=()=>{const id=Date.now().toString();sLessons([...lessons,{id,title:'บทเรียนใหม่',blocks:[{type:'text',value:''}]}]);sEditLes(lessons.length)};
   const updateLesson=(i,field,val)=>{const n=[...lessons];n[i]={...n[i],[field]:val};sLessons(n)};
   const removeLesson=(i)=>{if(confirm('ลบบทเรียนนี้?')){sLessons(lessons.filter((_,j)=>j!==i));if(editLes===i)sEditLes(null);else if(editLes>i)sEditLes(editLes-1)}};
   const moveLesson=(i,dir)=>{if(i+dir<0||i+dir>=lessons.length)return;const n=[...lessons];[n[i],n[i+dir]]=[n[i+dir],n[i]];sLessons(n);if(editLes===i)sEditLes(i+dir)};
@@ -727,29 +727,7 @@ function CourseModal({data,onSave,onDelete,onClose}) {
           <button type="button" onClick={e=>{e.stopPropagation();moveLesson(i,1)}} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:14}} title="ลง">▼</button>
           <button type="button" onClick={e=>{e.stopPropagation();removeLesson(i)}} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:14}} title="ลบ">✕</button>
         </div>
-        {editLes===i&&<div style={{padding:16,background:'var(--sf2)',borderRadius:'0 0 8px 8px',borderTop:'none',border:'1px solid var(--bd)',borderTop:0}}>
-          <div className="mfg"><label>ชื่อบทเรียน</label><input value={les.title} onChange={e=>updateLesson(i,'title',e.target.value)}/></div>
-          <div className="mfg"><label>เนื้อหาบทเรียน</label><textarea value={les.content} onChange={e=>updateLesson(i,'content',e.target.value)} style={{minHeight:180,fontFamily:'var(--f)',lineHeight:1.7}} placeholder="พิมพ์เนื้อหาที่นี่..."/></div>
-
-          <div className="mfg"><label>📷 รูปภาพ / วิดีโอ</label>
-            {(les.media||[]).map((m,mi)=><div key={mi} className="media-editor">
-              <div className="me-head">
-                <span style={{fontSize:13,fontWeight:600,color:'var(--tx2)'}}>สื่อ #{mi+1}</span>
-                <div className="me-type">
-                  <button type="button" className={m.type==='image'?'on':''} onClick={()=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],type:'image'};updateLesson(i,'media',nm)}}>🖼️ รูป</button>
-                  <button type="button" className={m.type==='youtube'?'on':''} onClick={()=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],type:'youtube'};updateLesson(i,'media',nm)}}>▶️ YouTube</button>
-                </div>
-                <div style={{flex:1}}/>
-                <button type="button" onClick={()=>{const nm=(les.media||[]).filter((_,j)=>j!==mi);updateLesson(i,'media',nm)}} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:13}}>✕ ลบ</button>
-              </div>
-              <input value={m.url||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],url:e.target.value};updateLesson(i,'media',nm)}} placeholder={m.type==='youtube'?'วาง YouTube URL เช่น https://www.youtube.com/watch?v=...':'วาง URL รูป: Google Drive link, Imgur, หรือ URL .jpg/.png'} style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13,marginBottom:6}}/>
-              <input value={m.caption||''} onChange={e=>{const nm=[...(les.media||[])];nm[mi]={...nm[mi],caption:e.target.value};updateLesson(i,'media',nm)}} placeholder="คำอธิบาย (ไม่บังคับ)" style={{width:'100%',padding:'8px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:12}}/>
-              {m.type==='image'&&m.url&&<div style={{marginTop:8,borderRadius:6,overflow:'hidden',border:'1px solid var(--bd)'}}><img src={toDirectImageUrl(m.url)} style={{maxWidth:'100%',maxHeight:150,objectFit:'contain',display:'block',background:'var(--sf)'}} onError={e=>{e.target.style.display='none'}}/></div>}
-            </div>)}
-            <button type="button" onClick={()=>{const nm=[...(les.media||[]),{type:'image',url:'',caption:''}];updateLesson(i,'media',nm)}} style={{width:'100%',padding:'10px',border:'1px dashed var(--bd)',borderRadius:8,background:'transparent',color:'var(--ac)',cursor:'pointer',fontSize:13,fontFamily:'var(--f)'}}>+ เพิ่มรูปภาพ / วิดีโอ</button>
-          </div>
-          <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7}}>💡 <b>วิธีเพิ่มรูป:</b> วาง Google Drive link ได้เลย (ระบบแปลงให้อัตโนมัติ) หรือใช้ URL รูปโดยตรง (.jpg .png)<br/>📌 Google Drive: คลิกขวาไฟล์ → รับลิงก์ → ตั้ง "ทุกคนที่มีลิงก์" → วาง link ที่นี่</div>
-        </div>}
+        {editLes===i&&<LessonBlockEditor les={les} onChange={(field,val)=>updateLesson(i,field,val)}/>}
       </div>)}
     </>}
 
@@ -816,6 +794,65 @@ function UserModal({data,onSave,onDelete,onClose}) {
   </div></div>;
 }
 
+
+function LessonBlockEditor({les,onChange}) {
+  const blocks = les.blocks || (les.content ? [{type:'text',value:les.content}] : [{type:'text',value:''}]);
+  const setBlocks=(nb)=>onChange('blocks',nb);
+
+  const addBlock=(type,afterIdx)=>{
+    const nb=[...blocks];
+    const newBlock = type==='text'?{type:'text',value:''}:{type,url:'',caption:''};
+    nb.splice(afterIdx+1,0,newBlock);
+    setBlocks(nb);
+  };
+  const updateBlock=(bi,field,val)=>{const nb=[...blocks];nb[bi]={...nb[bi],[field]:val};setBlocks(nb)};
+  const removeBlock=(bi)=>{if(blocks.length<=1&&blocks[0].type==='text')return;const nb=blocks.filter((_,j)=>j!==bi);setBlocks(nb.length?nb:[{type:'text',value:''}])};
+  const moveBlock=(bi,dir)=>{if(bi+dir<0||bi+dir>=blocks.length)return;const nb=[...blocks];[nb[bi],nb[bi+dir]]=[nb[bi+dir],nb[bi]];setBlocks(nb)};
+
+  return <div style={{padding:16,background:'var(--sf2)',borderRadius:'0 0 8px 8px',border:'1px solid var(--bd)',borderTop:0}}>
+    <div className="mfg"><label>ชื่อบทเรียน</label><input value={les.title} onChange={e=>onChange('title',e.target.value)}/></div>
+
+    <div className="mfg"><label>📝 เนื้อหา (จัดเรียงข้อความ รูป วิดีโอ ได้อิสระ)</label>
+      {blocks.map((b,bi)=><div key={bi} style={{marginBottom:8}}>
+        <div style={{display:'flex',alignItems:'center',gap:4,marginBottom:4}}>
+          <span style={{fontSize:11,color:'var(--tx3)',width:50}}>{b.type==='text'?'📝 ข้อความ':b.type==='image'?'🖼️ รูป':'▶️ วิดีโอ'}</span>
+          <div style={{flex:1}}/>
+          <button type="button" onClick={()=>moveBlock(bi,-1)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:11,padding:'2px 4px'}}>▲</button>
+          <button type="button" onClick={()=>moveBlock(bi,1)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:11,padding:'2px 4px'}}>▼</button>
+          <button type="button" onClick={()=>removeBlock(bi)} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:11,padding:'2px 4px'}}>✕</button>
+        </div>
+
+        {b.type==='text'&&<textarea value={b.value||''} onChange={e=>updateBlock(bi,'value',e.target.value)} style={{width:'100%',padding:'10px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13,minHeight:80,resize:'vertical',lineHeight:1.7}} placeholder="พิมพ์เนื้อหา..."/>}
+
+        {b.type==='image'&&<div style={{border:'1px dashed var(--bd)',borderRadius:8,padding:10,background:'var(--sf)'}}>
+          <input value={b.url||''} onChange={e=>updateBlock(bi,'url',e.target.value)} placeholder="วาง URL รูป หรือ Google Drive link" style={{width:'100%',padding:'8px 10px',background:'var(--sf2)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:12,marginBottom:4}}/>
+          <input value={b.caption||''} onChange={e=>updateBlock(bi,'caption',e.target.value)} placeholder="คำอธิบายรูป (ไม่บังคับ)" style={{width:'100%',padding:'6px 10px',background:'var(--sf2)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:11}}/>
+          {b.url&&<div style={{marginTop:6,borderRadius:4,overflow:'hidden'}}><img src={toDirectImageUrl(b.url)} style={{maxWidth:'100%',maxHeight:120,objectFit:'contain',display:'block'}} onError={e=>{e.target.style.display='none'}}/></div>}
+        </div>}
+
+        {b.type==='youtube'&&<div style={{border:'1px dashed var(--bd)',borderRadius:8,padding:10,background:'var(--sf)'}}>
+          <input value={b.url||''} onChange={e=>updateBlock(bi,'url',e.target.value)} placeholder="วาง YouTube URL" style={{width:'100%',padding:'8px 10px',background:'var(--sf2)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:12,marginBottom:4}}/>
+          <input value={b.caption||''} onChange={e=>updateBlock(bi,'caption',e.target.value)} placeholder="คำอธิบายวิดีโอ (ไม่บังคับ)" style={{width:'100%',padding:'6px 10px',background:'var(--sf2)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:11}}/>
+        </div>}
+
+        {/* Add block buttons after each block */}
+        <div style={{display:'flex',gap:4,justifyContent:'center',marginTop:4}}>
+          <button type="button" onClick={()=>addBlock('text',bi)} style={{fontSize:11,color:'var(--ac)',background:'none',border:'1px dashed var(--bd)',borderRadius:4,padding:'3px 10px',cursor:'pointer',fontFamily:'var(--f)'}}>+ ข้อความ</button>
+          <button type="button" onClick={()=>addBlock('image',bi)} style={{fontSize:11,color:'var(--ac)',background:'none',border:'1px dashed var(--bd)',borderRadius:4,padding:'3px 10px',cursor:'pointer',fontFamily:'var(--f)'}}>+ รูป</button>
+          <button type="button" onClick={()=>addBlock('youtube',bi)} style={{fontSize:11,color:'var(--ac)',background:'none',border:'1px dashed var(--bd)',borderRadius:4,padding:'3px 10px',cursor:'pointer',fontFamily:'var(--f)'}}>+ วิดีโอ</button>
+        </div>
+      </div>)}
+
+      {blocks.length===0&&<div style={{display:'flex',gap:6,justifyContent:'center',padding:16}}>
+        <button type="button" onClick={()=>setBlocks([{type:'text',value:''}])} className="btn bg bs">+ ข้อความ</button>
+        <button type="button" onClick={()=>setBlocks([{type:'image',url:'',caption:''}])} className="btn bg bs">+ รูป</button>
+        <button type="button" onClick={()=>setBlocks([{type:'youtube',url:'',caption:''}])} className="btn bg bs">+ วิดีโอ</button>
+      </div>}
+    </div>
+    <div style={{fontSize:11,color:'var(--tx3)',lineHeight:1.7}}>💡 จัดเรียงบล็อกข้อความ รูป วิดีโอได้อิสระ ใช้ ▲▼ เลื่อนลำดับ<br/>📌 Google Drive รูป: ตั้ง "ทุกคนที่มีลิงก์" แล้ววาง link ได้เลย</div>
+  </div>;
+}
+
 function CLvls({lp,isUn,scores,onSel,courses}) {
   return <div>{courses.map(l=>{const p=lp(l);const u=isUn(l);const ps=p===100&&(scores[l.id]||0)>=70;return <div key={l.id} className={`lc ${!u?'lk':''}`} onClick={()=>u&&onSel(l)}><div className="li" style={{background:l.color+'15'}}>{l.icon}</div><div className="linf"><h3>Level {l.id}: {l.title}</h3><p>{l.subtitle} · {l.lessons.length} บทเรียน</p><div className="lpb"><div className="lpf" style={{width:p+'%',background:l.color}}/></div></div>{!u&&<span className="lbd" style={{background:'var(--sf3)',color:'var(--tx3)'}}>🔒</span>}{u&&ps&&<span className="lbd" style={{background:'var(--gnbg)',color:'var(--gn)'}}>✅ ผ่าน</span>}{u&&!ps&&<span className="lbd" style={{background:l.color+'20',color:l.color}}>{p>0?p+'%':'เริ่ม →'}</span>}</div>})}</div>;
 }
@@ -832,16 +869,22 @@ function LD({level,prog,qs,onBack,onLes,onQz}) {
 
 function LV({les,lvl,prog,onDn,onBack,onNx}) {
   const getYTid=(url)=>{if(!url)return null;const m=url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^&?\s]+)/);return m?m[1]:null};
+
+  // Support both old format (content+media) and new format (blocks)
+  const blocks = les.blocks || [
+    ...(les.media||[]).map(m=>({type:m.type,url:m.url,caption:m.caption})),
+    ...(les.content?[{type:'text',value:les.content}]:[])
+  ];
+
   return <div><button className="btn bg bs" onClick={onBack} style={{marginBottom:20}}>← กลับ</button>
   <div className="cv"><span className="badge b-pu" style={{marginBottom:8}}>{lvl.icon} Level {lvl.id}</span><h2>{les.title}</h2>
 
-  {(les.media||[]).map((m,i)=><div key={i} className="media-block">
-    {m.type==='image'&&m.url&&<img src={toDirectImageUrl(m.url)} alt={m.caption||les.title}/>}
-    {m.type==='youtube'&&m.url&&<div className="vid-wrap"><iframe src={`https://www.youtube.com/embed/${getYTid(m.url)||''}`} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen/></div>}
-    {m.caption&&<div className="caption">{m.caption}</div>}
+  {blocks.map((b,i)=><div key={i}>
+    {b.type==='text'&&b.value&&<div className="cb">{b.value.split('\n').map((l,j)=>l.trim()===''?<br key={j}/>:<div key={j} style={{marginBottom:2}}>{l}</div>)}</div>}
+    {b.type==='image'&&b.url&&<div className="media-block"><img src={toDirectImageUrl(b.url)} alt={b.caption||les.title}/>{b.caption&&<div className="caption">{b.caption}</div>}</div>}
+    {b.type==='youtube'&&b.url&&<div className="media-block"><div className="vid-wrap"><iframe src={`https://www.youtube.com/embed/${getYTid(b.url)||''}`} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen/></div>{b.caption&&<div className="caption">{b.caption}</div>}</div>}
   </div>)}
 
-  <div className="cb">{les.content.split('\n').map((l,i)=>l.trim()===''?<br key={i}/>:<div key={i} style={{marginBottom:2}}>{l}</div>)}</div>
   <div className="cn">{!prog[les.id]&&<button className="btn bgn" onClick={onDn}>✓ จบบทนี้</button>}<button className="btn bp" onClick={onNx}>ถัดไป →</button></div></div></div>;
 }
 
