@@ -482,7 +482,7 @@ function App() {
         <div className="mc">
           {page==='dashboard'&&user.role!=='admin'&&user.role!=='manager'&&<TDB prog={prog} scores={scores} lp={lp} uLvl={uLvl} tScore={tScore} courses={courses} onGo={l=>{setSelLvl(l);setPage('courses')}}/>}
           {page==='dashboard'&&user.role==='manager'&&<MDB/>}
-          {page==='dashboard'&&user.role==='admin'&&<ADB courses={courses} setCourses={setCourses} users={users} setUsers={setUsers}/>}
+          {page==='dashboard'&&user.role==='admin'&&<ADB courses={courses} setCourses={setCourses} users={users} setUsers={setUsers} resources={resources} setResources={setResources} scripts={scripts} setScripts={setScripts} setProg={setProg} setScores={setScores}/>}
           {page==='courses'&&!selLvl&&<CLvls lp={lp} isUn={isUn} scores={scores} onSel={setSelLvl} courses={courses}/>}
           {page==='courses'&&selLvl&&!selLes&&!qz&&<LD level={selLvl} prog={prog} qs={scores[selLvl.id]} onBack={()=>setSelLvl(null)} onLes={setSelLes} onQz={()=>setQz(true)}/>}
           {page==='courses'&&selLvl&&selLes&&<LV les={selLes} lvl={selLvl} prog={prog} onDn={()=>setProg(p=>({...p,[selLes.id]:true}))} onBack={()=>setSelLes(null)} onNx={()=>{const i=selLvl.lessons.findIndex(l=>l.id===selLes.id);setProg(p=>({...p,[selLes.id]:true}));i<selLvl.lessons.length-1?setSelLes(selLvl.lessons[i+1]):setSelLes(null)}}/>}
@@ -537,7 +537,7 @@ function MDB() {
     {[{n:"ปิยะ",s:"฿450K"},{n:"วิภา",s:"฿380K"},{n:"สมชาย",s:"฿120K"}].map((p,i)=><div key={i} style={{display:'flex',alignItems:'center',gap:14,padding:'12px 0',borderBottom:'1px solid var(--bd)'}}><span style={{fontSize:24,width:40,textAlign:'center'}}>{['🥇','🥈','🥉'][i]}</span><span style={{flex:1,fontWeight:600}}>{p.n}</span><span style={{fontFamily:'Outfit',fontWeight:700,color:'var(--ac2)'}}>{p.s}</span></div>)}</div></>;
 }
 
-function ADB({courses,setCourses,users,setUsers}) {
+function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,setScripts,setProg,setScores}) {
   const [tab,sT]=useState("stats");
   const [modal,sM]=useState(null); // {type:'addCourse'|'editCourse'|'addUser'|'editUser', data?:...}
   const [toast,sToast]=useState(null);
