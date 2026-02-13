@@ -387,6 +387,7 @@ function App() {
   const [courses, setCourses] = useState(LEVELS_DATA);
   const [users, setUsers] = useState(USERS_DATA);
   const [resources, setResources] = useState(RES_DEFAULT);
+  const [scripts, setScripts] = useState(SCRIPTS_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -398,12 +399,13 @@ function App() {
     let cancelled = false;
     async function load() {
       try {
-        const [c, u, p, s, r] = await Promise.all([
+        const [c, u, p, s, r, sc] = await Promise.all([
           cloudGet('courses', null, true),
           cloudGet('users', null, true),
           cloudGet('prog', null, false),
           cloudGet('scores', null, false),
           cloudGet('resources', null, true),
+          cloudGet('scripts', null, true),
         ]);
         if (cancelled) return;
         if (c) setCourses(c);
@@ -411,6 +413,7 @@ function App() {
         if (p) setProg(p);
         if (s) setScores(s);
         if (r) setResources(r);
+        if (sc) setScripts(sc);
       } catch(e) { console.log('load error', e); }
       if (!cancelled) setLoaded(true);
     }
@@ -444,6 +447,11 @@ function App() {
     const t = setTimeout(() => { cloudSet('resources', resources, true); }, 500);
     return () => clearTimeout(t);
   }, [resources, loaded]);
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => { cloudSet('scripts', scripts, true); }, 500);
+    return () => clearTimeout(t);
+  }, [scripts, loaded]);
 
   const lp = useCallback((lv) => { if(!lv.lessons||!lv.lessons.length) return 0; const d=lv.lessons.filter(l=>prog[l.id]).length; return Math.round(d/lv.lessons.length*100); }, [prog]);
   const isUn = useCallback((lv) => { if(lv.id===1) return true; const p=courses.find(l=>l.id===lv.id-1); return p && lp(p)===100 && (scores[p.id]||0)>=70; }, [lp, scores, courses]);
@@ -480,7 +488,7 @@ function App() {
           {page==='courses'&&selLvl&&selLes&&<LV les={selLes} lvl={selLvl} prog={prog} onDn={()=>setProg(p=>({...p,[selLes.id]:true}))} onBack={()=>setSelLes(null)} onNx={()=>{const i=selLvl.lessons.findIndex(l=>l.id===selLes.id);setProg(p=>({...p,[selLes.id]:true}));i<selLvl.lessons.length-1?setSelLes(selLvl.lessons[i+1]):setSelLes(null)}}/>}
           {page==='courses'&&selLvl&&qz&&<QV level={selLvl} onFin={s=>{setScores(sc=>({...sc,[selLvl.id]:s}));setQz(false)}} onBack={()=>setQz(false)}/>}
           {page==='calculator'&&<Calc isM={user.role==='manager'||user.role==='admin'}/>}
-          {page==='scripts'&&<Scr/>}
+          {page==='scripts'&&<Scr scripts={scripts} setScripts={setScripts} isAdmin={user.role==='admin'}/>}
           {page==='resources'&&<Res resources={resources} setResources={setResources} isAdmin={user.role==='admin'}/>}
         </div>
       </div>
@@ -635,17 +643,17 @@ function ADB({courses,setCourses,users,setUsers}) {
       <div style={{padding:16,border:'1px solid var(--rd)',borderRadius:8,background:'var(--rdbg)'}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--rd)'}}>🗑️ รีเซ็ตข้อมูลทั้งหมด</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>คืนค่าคอร์ส บทเรียน Quiz และผู้ใช้ทั้งหมดกลับเป็นค่าเริ่มต้น (ข้อมูลที่แก้ไขจะหายหมด)</div>
-        <button className="btn btn-danger bs" type="button" onClick={()=>{if(confirm('⚠️ ยืนยันรีเซ็ตข้อมูลทั้งหมด?\nคอร์ส บทเรียน Quiz ผู้ใช้ จะกลับเป็นค่าเริ่มต้น')){Promise.all([cloudSet('courses',LEVELS_DATA,true),cloudSet('users',USERS_DATA,true),cloudSet('prog',{},false),cloudSet('scores',{},false),cloudSet('resources',RES_DEFAULT,true)]).then(()=>{setCourses(LEVELS_DATA);setUsers(USERS_DATA);setResources(RES_DEFAULT);setProg({});setScores({});showToast('✅ รีเซ็ตข้อมูลเรียบร้อย')})}}}>🗑️ รีเซ็ตทั้งหมด</button>
+        <button className="btn btn-danger bs" type="button" onClick={()=>{if(confirm('⚠️ ยืนยันรีเซ็ตข้อมูลทั้งหมด?\nคอร์ส บทเรียน Quiz ผู้ใช้ จะกลับเป็นค่าเริ่มต้น')){Promise.all([cloudSet('courses',LEVELS_DATA,true),cloudSet('users',USERS_DATA,true),cloudSet('prog',{},false),cloudSet('scores',{},false),cloudSet('resources',RES_DEFAULT,true),cloudSet('scripts',SCRIPTS_DATA,true)]).then(()=>{setCourses(LEVELS_DATA);setUsers(USERS_DATA);setResources(RES_DEFAULT);setScripts(SCRIPTS_DATA);setProg({});setScores({});showToast('✅ รีเซ็ตข้อมูลเรียบร้อย')})}}}>🗑️ รีเซ็ตทั้งหมด</button>
       </div>
       <div style={{padding:16,border:'1px solid var(--bl)',borderRadius:8,background:'var(--blbg)',marginTop:14}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--bl)'}}>📤 Export ข้อมูล</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>ดาวน์โหลดข้อมูลทั้งหมดเป็นไฟล์ JSON เพื่อสำรองข้อมูล</div>
-        <button className="btn bg bs" type="button" onClick={()=>{const d=JSON.stringify({courses,users,resources},null,2);const b=new Blob([d],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='curtain-academy-backup.json';a.click();URL.revokeObjectURL(u);showToast('✅ Export สำเร็จ')}}>📤 Export JSON</button>
+        <button className="btn bg bs" type="button" onClick={()=>{const d=JSON.stringify({courses,users,resources,scripts},null,2);const b=new Blob([d],{type:'application/json'});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='curtain-academy-backup.json';a.click();URL.revokeObjectURL(u);showToast('✅ Export สำเร็จ')}}>📤 Export JSON</button>
       </div>
       <div style={{padding:16,border:'1px solid var(--gn)',borderRadius:8,background:'var(--gnbg)',marginTop:14}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--gn)'}}>📥 Import ข้อมูล</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>นำเข้าข้อมูลจากไฟล์ JSON ที่ Export ไว้</div>
-        <input type="file" accept=".json" style={{fontSize:13}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.courses){setCourses(d.courses);showToast('✅ Import คอร์สสำเร็จ ('+d.courses.length+' คอร์ส)')}if(d.users){setUsers(d.users)}if(d.resources){setResources(d.resources)}}catch(err){alert('ไฟล์ JSON ไม่ถูกต้อง')}};r.readAsText(f)}}/>
+        <input type="file" accept=".json" style={{fontSize:13}} onChange={e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const d=JSON.parse(ev.target.result);if(d.courses){setCourses(d.courses);showToast('✅ Import คอร์สสำเร็จ ('+d.courses.length+' คอร์ส)')}if(d.users){setUsers(d.users)}if(d.resources){setResources(d.resources)}if(d.scripts){setScripts(d.scripts)}}catch(err){alert('ไฟล์ JSON ไม่ถูกต้อง')}};r.readAsText(f)}}/>
       </div>
     </div>}
 
@@ -865,9 +873,74 @@ function Calc({isM}) {
   {res&&<div className="clres"><div style={{fontSize:13,color:'var(--tx2)',marginBottom:4}}>ราคาประมาณ</div><div className="pr">฿{res.t.toLocaleString()}</div><div className="dt">ผ้า: ฿{res.fc.toLocaleString()} ({res.fw}×{res.hm} ม.)<br/>เย็บ: ฿{res.sc.toLocaleString()}<br/>ราง: ฿{res.rc.toLocaleString()}</div>{isM&&<div style={{marginTop:14,padding:'12px 16px',background:'var(--gnbg)',borderRadius:8,border:'1px solid var(--gn)'}}><span style={{fontSize:12,color:'var(--gn)',fontWeight:700}}>💰 กำไร (35%): ฿{res.mg.toLocaleString()}</span></div>}<div style={{fontSize:11,color:'var(--tx3)',marginTop:10}}>⚠️ ราคาประมาณการ</div></div>}</div>;
 }
 
-function Scr() {
+function Scr({scripts,setScripts,isAdmin}) {
   const [cp,sCp]=useState(null);
-  return <div style={{maxWidth:800}}>{SCRIPTS_DATA.map((c,ci)=><div key={ci} className="scat"><h3>{['💬','❓','🎯','📞'][ci]} {c.cat}</h3>{c.items.map((it,ii)=>{const k=ci+'-'+ii;return <div key={k} className="si2"><h4>{it.title}</h4><p>{it.text}</p><button className="cpb" onClick={()=>{navigator.clipboard?.writeText(it.text);sCp(k);setTimeout(()=>sCp(null),2000)}}>{cp===k?'✅ คัดลอกแล้ว':'📋 คัดลอก'}</button></div>})}</div>)}</div>;
+  const [editCat,sEC]=useState(null); // index of category being edited
+  const [editItem,sEI]=useState(null); // {ci, ii} or {ci,'new'}
+  const [toast,sToast]=useState(null);
+  const showToast=(msg)=>{sToast(msg);setTimeout(()=>sToast(null),2500)};
+  const catIcons=['💬','❓','🎯','📞','📣','🤝','📱','🛒','💡','🔔'];
+
+  // Category CRUD
+  const addCat=()=>{setScripts([...scripts,{cat:'หมวดใหม่',items:[]}]);sEC(scripts.length)};
+  const updateCat=(ci,val)=>{const n=[...scripts];n[ci]={...n[ci],cat:val};setScripts(n)};
+  const removeCat=(ci)=>{if(confirm('ลบหมวด "'+scripts[ci].cat+'" และ script ทั้งหมด?')){setScripts(scripts.filter((_,i)=>i!==ci));sEC(null);showToast('🗑️ ลบหมวดแล้ว')}};
+  const moveCat=(ci,dir)=>{if(ci+dir<0||ci+dir>=scripts.length)return;const n=[...scripts];[n[ci],n[ci+dir]]=[n[ci+dir],n[ci]];setScripts(n)};
+
+  // Item CRUD
+  const addItem=(ci)=>{const n=[...scripts];n[ci]={...n[ci],items:[...n[ci].items,{title:'Script ใหม่',text:''}]};setScripts(n);sEI({ci,ii:n[ci].items.length-1})};
+  const updateItem=(ci,ii,field,val)=>{const n=[...scripts];n[ci]={...n[ci],items:[...n[ci].items]};n[ci].items[ii]={...n[ci].items[ii],[field]:val};setScripts(n)};
+  const removeItem=(ci,ii)=>{if(confirm('ลบ script นี้?')){const n=[...scripts];n[ci]={...n[ci],items:n[ci].items.filter((_,j)=>j!==ii)};setScripts(n);sEI(null);showToast('🗑️ ลบแล้ว')}};
+  const moveItem=(ci,ii,dir)=>{if(ii+dir<0||ii+dir>=scripts[ci].items.length)return;const n=[...scripts];n[ci]={...n[ci],items:[...n[ci].items]};[n[ci].items[ii],n[ci].items[ii+dir]]=[n[ci].items[ii+dir],n[ci].items[ii]];setScripts(n)};
+
+  return <div style={{maxWidth:800}}>
+    {isAdmin&&<div style={{display:'flex',justifyContent:'flex-end',marginBottom:14}}>
+      <button className="btn bp bs" onClick={addCat}>+ เพิ่มหมวด</button>
+    </div>}
+
+    {scripts.map((c,ci)=><div key={ci} className="scat">
+      <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:12}}>
+        <h3 style={{flex:1,margin:0}}>{catIcons[ci%catIcons.length]} {c.cat}</h3>
+        {isAdmin&&<>
+          <button type="button" onClick={()=>moveCat(ci,-1)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:13}}>▲</button>
+          <button type="button" onClick={()=>moveCat(ci,1)} style={{background:'none',border:'none',color:'var(--tx3)',cursor:'pointer',fontSize:13}}>▼</button>
+          <button className="btn bg bs" style={{fontSize:12,padding:'4px 10px'}} onClick={()=>sEC(editCat===ci?null:ci)}>{editCat===ci?'✓ เสร็จ':'✏️ แก้ไข'}</button>
+          <button type="button" onClick={()=>removeCat(ci)} style={{background:'none',border:'none',color:'var(--rd)',cursor:'pointer',fontSize:14}}>✕</button>
+        </>}
+      </div>
+
+      {isAdmin&&editCat===ci&&<div style={{padding:12,background:'var(--sf2)',borderRadius:8,marginBottom:12,border:'1px solid var(--bd)'}}>
+        <div className="mfg" style={{marginBottom:8}}><label>ชื่อหมวด</label><input value={c.cat} onChange={e=>updateCat(ci,e.target.value)}/></div>
+      </div>}
+
+      {c.items.map((it,ii)=>{const k=ci+'-'+ii;const isEditing=editItem&&editItem.ci===ci&&editItem.ii===ii;
+        return <div key={k} className="si2" style={isEditing?{border:'1px solid var(--ac)',background:'var(--acbg)'}:{}}>
+          {!isEditing&&<>
+            <h4>{it.title}</h4>
+            <p>{it.text}</p>
+            <div style={{display:'flex',gap:6,marginTop:8}}>
+              <button className="cpb" onClick={()=>{navigator.clipboard?.writeText(it.text);sCp(k);setTimeout(()=>sCp(null),2000)}}>{cp===k?'✅ คัดลอกแล้ว':'📋 คัดลอก'}</button>
+              {isAdmin&&editCat===ci&&<>
+                <button className="cpb" onClick={()=>sEI({ci,ii})}>✏️ แก้ไข</button>
+                <button className="cpb" style={{color:'var(--rd)'}} onClick={()=>moveItem(ci,ii,-1)}>▲</button>
+                <button className="cpb" style={{color:'var(--rd)'}} onClick={()=>moveItem(ci,ii,1)}>▼</button>
+                <button className="cpb" style={{color:'var(--rd)'}} onClick={()=>removeItem(ci,ii)}>✕ ลบ</button>
+              </>}
+            </div>
+          </>}
+          {isEditing&&<div>
+            <div className="mfg" style={{marginBottom:8}}><label>ชื่อ Script</label><input value={it.title} onChange={e=>updateItem(ci,ii,'title',e.target.value)}/></div>
+            <div className="mfg" style={{marginBottom:8}}><label>เนื้อหา Script</label><textarea value={it.text} onChange={e=>updateItem(ci,ii,'text',e.target.value)} style={{minHeight:100,lineHeight:1.7}} placeholder="พิมพ์ script ที่ต้องการ..."/></div>
+            <button className="btn bp bs" onClick={()=>sEI(null)}>✓ เสร็จ</button>
+          </div>}
+        </div>})}
+
+      {isAdmin&&editCat===ci&&<button onClick={()=>addItem(ci)} style={{width:'100%',padding:10,border:'1px dashed var(--bd)',borderRadius:8,background:'transparent',color:'var(--ac)',cursor:'pointer',fontSize:13,fontFamily:'var(--f)',marginTop:6}}>+ เพิ่ม Script ในหมวดนี้</button>}
+    </div>)}
+
+    {scripts.length===0&&<div className="card" style={{textAlign:'center',padding:40,color:'var(--tx3)'}}>ยังไม่มี Script {isAdmin&&'— กด + เพิ่มหมวด'}</div>}
+    {toast&&<div className="toast">{toast}</div>}
+  </div>;
 }
 
 function Res({resources,setResources,isAdmin}) {
