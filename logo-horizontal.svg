@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 100" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#6C5CE7"/>
+      <stop offset="100%" stop-color="#4834D4"/>
+    </linearGradient>
+    <linearGradient id="rod" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#FFD700"/>
+      <stop offset="50%" stop-color="#FFF4CC"/>
+      <stop offset="100%" stop-color="#FFD700"/>
+    </linearGradient>
+  </defs>
+  
+  <!-- Icon square -->
+  <rect x="8" y="8" width="84" height="84" rx="20" fill="url(#bg)"/>
+  <rect x="22" y="26" width="56" height="3" rx="1.5" fill="url(#rod)"/>
+  <circle cx="22" cy="27.5" r="3.5" fill="#FFD700"/>
+  <circle cx="78" cy="27.5" r="3.5" fill="#FFD700"/>
+  <path d="M25 29 C25 29,23 48,27 64 C28 68,26 72,27 75 L42 75 C44 60,42 45,45 29 Z" fill="white" fill-opacity="0.9"/>
+  <path d="M55 29 C58 45,56 60,58 75 L73 75 C74 72,72 68,73 64 C77 48,75 29,75 29 Z" fill="white" fill-opacity="0.78"/>
+  <rect x="44" y="33" width="12" height="20" rx="1.5" fill="white" fill-opacity="0.15"/>
+  
+  <!-- Text -->
+  <text x="110" y="48" font-family="system-ui,-apple-system,sans-serif" font-size="30" font-weight="800" fill="#1A1D2E" letter-spacing="-0.5">Curtain</text>
+  <text x="253" y="48" font-family="system-ui,-apple-system,sans-serif" font-size="30" font-weight="800" fill="#6C5CE7" letter-spacing="-0.5">Academy</text>
+  <text x="110" y="72" font-family="system-ui,-apple-system,sans-serif" font-size="14" font-weight="500" fill="#9498AC" letter-spacing="0.5">Sales Training Platform</text>
+</svg>
