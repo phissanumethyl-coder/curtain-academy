@@ -435,7 +435,9 @@ function lsGet(key, fallback) { return fallback; }
 function lsSet(key, val) {}
 
 function App() {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => {
+    try { const s = localStorage.getItem('ca_session'); return s ? JSON.parse(s) : null; } catch(e) { return null; }
+  });
   const [page, setPage] = useState("dashboard");
   const [selLvl, setSelLvl] = useState(null);
   const [selLes, setSelLes] = useState(null);
@@ -448,6 +450,12 @@ function App() {
   const [scripts, setScripts] = useState(SCRIPTS_DATA);
   const [loaded, setLoaded] = useState(false);
   const [saving, setSaving] = useState(false);
+
+  // Persist user session
+  useEffect(() => {
+    if (user) localStorage.setItem('ca_session', JSON.stringify(user));
+    else localStorage.removeItem('ca_session');
+  }, [user]);
 
   useEffect(() => { const s=document.createElement("style"); s.textContent=CSS; document.head.appendChild(s); return ()=>document.head.removeChild(s); }, []);
   useEffect(() => { let l=document.querySelector("link[rel='icon']"); if(!l){l=document.createElement('link');l.rel='icon';document.head.appendChild(l)} l.href=LOGO_FAVICON; }, []);
@@ -480,14 +488,17 @@ function App() {
   }, []);
 
   // Auto-save to cloud (debounced, skip initial load)
+  const skipPoll = React.useRef(false);
   useEffect(() => {
     if (!loaded) return;
-    const t = setTimeout(() => { cloudSet('courses', courses, true); }, 500);
+    skipPoll.current = true;
+    const t = setTimeout(() => { cloudSet('courses', courses, true).then(()=>{setTimeout(()=>{skipPoll.current=false},2000)}); }, 500);
     return () => clearTimeout(t);
   }, [courses, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    const t = setTimeout(() => { cloudSet('users', users, true); }, 500);
+    skipPoll.current = true;
+    const t = setTimeout(() => { cloudSet('users', users, true).then(()=>{setTimeout(()=>{skipPoll.current=false},2000)}); }, 500);
     return () => clearTimeout(t);
   }, [users, loaded]);
   useEffect(() => {
@@ -502,14 +513,38 @@ function App() {
   }, [scores, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    const t = setTimeout(() => { cloudSet('resources', resources, true); }, 500);
+    skipPoll.current = true;
+    const t = setTimeout(() => { cloudSet('resources', resources, true).then(()=>{setTimeout(()=>{skipPoll.current=false},2000)}); }, 500);
     return () => clearTimeout(t);
   }, [resources, loaded]);
   useEffect(() => {
     if (!loaded) return;
-    const t = setTimeout(() => { cloudSet('scripts', scripts, true); }, 500);
+    skipPoll.current = true;
+    const t = setTimeout(() => { cloudSet('scripts', scripts, true).then(()=>{setTimeout(()=>{skipPoll.current=false},2000)}); }, 500);
     return () => clearTimeout(t);
   }, [scripts, loaded]);
+
+  // Poll Firebase every 10 seconds for real-time sync
+  useEffect(() => {
+    if (!loaded) return;
+    const fb = getFbUrl();
+    if (!fb) return;
+    const poll = async () => {
+      if (skipPoll.current) return;
+      try {
+        const resp = await fetch(fb + '/shared.json', {signal: AbortSignal.timeout(5000)});
+        if (!resp.ok) return;
+        const d = await resp.json();
+        if (!d) return;
+        if (d.courses && JSON.stringify(d.courses) !== JSON.stringify(courses)) setCourses(d.courses);
+        if (d.users && JSON.stringify(d.users) !== JSON.stringify(users)) setUsers(d.users);
+        if (d.resources && JSON.stringify(d.resources) !== JSON.stringify(resources)) setResources(d.resources);
+        if (d.scripts && JSON.stringify(d.scripts) !== JSON.stringify(scripts)) setScripts(d.scripts);
+      } catch(e) {}
+    };
+    const iv = setInterval(poll, 10000);
+    return () => clearInterval(iv);
+  }, [loaded, courses, users, resources, scripts]);
 
   const lp = useCallback((lv) => { if(!lv.lessons||!lv.lessons.length) return 0; const d=lv.lessons.filter(l=>prog[l.id]).length; return Math.round(d/lv.lessons.length*100); }, [prog]);
   const isUn = useCallback((lv) => { if(lv.id===1) return true; const p=courses.find(l=>l.id===lv.id-1); return p && lp(p)===100 && (scores[p.id]||0)>=70; }, [lp, scores, courses]);
@@ -533,7 +568,7 @@ function App() {
       <aside className="sb">
         <div className="sb-logo" style={{display:'flex',alignItems:'center',gap:10}}><img src={LOGO_ICON} alt="Logo" style={{width:36,height:36,borderRadius:8}}/><span>Curtain<span>Academy</span></span></div>
         <nav className="sb-nav">{nav.map((n,i) => n.dv ? <div key={i} className="ndv"/> : <div key={n.id} className={`ni ${page===n.id?'on':''}`} onClick={()=>goP(n.id)}><span className="ic">{n.ic}</span>{n.lb}</div>)}</nav>
-        <div className="su"><span className="av">{user.avatar}</span><div style={{flex:1}}><div className="nm">{user.name}</div><span className="rb" style={{background:rbg(user.role),color:rcl(user.role)}}>{user.role}</span></div><button className="lob" onClick={()=>{setUser(null);setPage('dashboard')}}>⏻</button></div>
+        <div className="su"><span className="av">{user.avatar}</span><div style={{flex:1}}><div className="nm">{user.name}</div><span className="rb" style={{background:rbg(user.role),color:rcl(user.role)}}>{user.role}</span></div><button className="lob" onClick={()=>{setUser(null);localStorage.removeItem('ca_session');setPage('dashboard')}}>⏻</button></div>
       </aside>
       <div className="mn">
         <header className="mh"><h1 className="mt">{({dashboard:'Dashboard',courses:'หลักสูตร',calculator:'คำนวณราคา',scripts:'Script Library',resources:'Resources'})[page]}</h1>{user.role!=='admin'&&<span className="badge b-pu">Level {uLvl()}</span>}</header>
@@ -746,15 +781,6 @@ function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,s
           {getFbUrl()&&<button className="btn bg bs" onClick={()=>{setFbUrl('');sFbUrl('');sFbStatus('🔌 ตัดการเชื่อมต่อแล้ว')}}>✕</button>}
         </div>
         {fbStatus&&<div style={{fontSize:12,marginTop:6,color:fbStatus.startsWith('✅')?'var(--gn)':fbStatus.startsWith('⏳')?'var(--bl)':'var(--rd)',fontWeight:600}}>{fbStatus}</div>}
-
-        {getFbUrl()&&<div style={{display:'flex',gap:8,marginTop:10}}>
-          <button className="btn bp bs" onClick={pushFb} style={{flex:1}}>⬆️ Push ข้อมูลขึ้น Firebase</button>
-          <button className="btn bg bs" onClick={pullFb} style={{flex:1}}>⬇️ Pull ข้อมูลจาก Firebase</button>
-        </div>}
-        {getFbUrl()&&<div style={{fontSize:11,color:'var(--tx3)',marginTop:6,lineHeight:1.6}}>
-          ⬆️ <b>Push</b> = อัพโหลดข้อมูลจากเครื่องนี้ขึ้น Firebase (ใช้ตอน Admin แก้ข้อมูลแล้วอยากให้เครื่องอื่นเห็น)<br/>
-          ⬇️ <b>Pull</b> = ดึงข้อมูลล่าสุดจาก Firebase มาใช้ (ใช้ตอนเปิดเครื่องใหม่แล้วข้อมูลยังเก่า)
-        </div>}
       </div>
 
       <div style={{padding:16,background:'var(--sf2)',borderRadius:8,marginBottom:14}}>
@@ -1364,7 +1390,7 @@ function ResModal({data,icons,types,onSave,onDelete,onClose}) {
 function rbg(r){return{trainee:'rgba(253,203,110,.15)',sales:'rgba(0,184,148,.15)',manager:'rgba(108,92,231,.15)',admin:'rgba(225,112,85,.15)'}[r]}
 function rcl(r){return{trainee:'#FDCB6E',sales:'#00B894',manager:'#A29BFE',admin:'#E17055'}[r]}
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
 </script>
 </body>
 </html>
