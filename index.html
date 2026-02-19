@@ -349,29 +349,62 @@ function toDirectImageUrl(url) {
   return url;
 }
 
+// === Cloud Storage with Firebase Realtime Database ===
+// Admin can set Firebase URL in Settings to enable cross-device sync
+// Without Firebase: uses localStorage (per-device only)
 const HAS_CLOUD = typeof window !== 'undefined' && window.storage && typeof window.storage.get === 'function';
 
+const FB_DEFAULT = 'https://curtain-academy-default-rtdb.asia-southeast1.firebasedatabase.app';
+
+function getFbUrl() {
+  try { return localStorage.getItem('ca_firebase_url') || FB_DEFAULT; } catch(e) { return FB_DEFAULT; }
+}
+function setFbUrl(url) {
+  try { localStorage.setItem('ca_firebase_url', url); } catch(e) {}
+}
+
 async function cloudGet(key, fallback, shared) {
-  try {
-    if (HAS_CLOUD) {
+  // 1. Try Firebase
+  const fb = getFbUrl();
+  if (fb) {
+    try {
+      const path = shared ? 'shared' : 'personal';
+      const resp = await fetch(fb + '/' + path + '/' + key + '.json', {signal: AbortSignal.timeout(5000)});
+      if (resp.ok) { const data = await resp.json(); if (data !== null && data !== undefined) return data; }
+    } catch(e) {}
+  }
+  // 2. Try window.storage (Claude.ai)
+  if (HAS_CLOUD) {
+    try {
       const r = await window.storage.get(key, shared);
-      return r && r.value ? JSON.parse(r.value) : fallback;
-    } else {
-      const v = localStorage.getItem('ca_' + key);
-      return v ? JSON.parse(v) : fallback;
-    }
-  } catch(e) { return fallback; }
+      if (r && r.value) return JSON.parse(r.value);
+    } catch(e) {}
+  }
+  // 3. Try localStorage
+  try {
+    const v = localStorage.getItem('ca_' + key);
+    if (v) return JSON.parse(v);
+  } catch(e) {}
+  return fallback;
 }
 
 async function cloudSet(key, val, shared) {
-  try {
-    if (HAS_CLOUD) {
-      await window.storage.set(key, JSON.stringify(val), shared);
-    } else {
-      localStorage.setItem('ca_' + key, JSON.stringify(val));
-    }
-  } catch(e) {}
+  // 1. Save to Firebase
+  const fb = getFbUrl();
+  if (fb) {
+    try {
+      await fetch(fb + '/' + path_for(shared) + '/' + key + '.json', {
+        method: 'PUT', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(val), signal: AbortSignal.timeout(5000)
+      });
+    } catch(e) {}
+  }
+  // 2. Save to window.storage
+  if (HAS_CLOUD) { try { await window.storage.set(key, JSON.stringify(val), shared); } catch(e) {} }
+  // 3. Save to localStorage
+  try { localStorage.setItem('ca_' + key, JSON.stringify(val)); } catch(e) {}
 }
+function path_for(shared) { return shared ? 'shared' : 'personal'; }
 
 function lsGet(key, fallback) { return fallback; }
 function lsSet(key, val) {}
@@ -539,7 +572,21 @@ function MDB() {
 
 function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,setScripts,setProg,setScores}) {
   const [tab,sT]=useState("stats");
-  const [modal,sM]=useState(null); // {type:'addCourse'|'editCourse'|'addUser'|'editUser', data?:...}
+  const [modal,sM]=useState(null);
+  const [fbUrl,sFbUrl]=useState(()=>getFbUrl());
+  const [fbStatus,sFbStatus]=useState('');
+  const testFb=async(url)=>{
+    if(!url){sFbStatus('❌ กรุณากรอก URL');return}
+    sFbStatus('⏳ กำลังทดสอบ...');
+    try{
+      const r=await fetch(url+'/.json',{signal:AbortSignal.timeout(5000)});
+      if(r.ok){setFbUrl(url);sFbStatus('✅ เชื่อมต่อสำเร็จ! ข้อมูลจะ sync ทุกเครื่อง');
+        // Push current data to Firebase
+        await Promise.all([cloudSet('courses',courses,true),cloudSet('users',users,true),cloudSet('resources',resources,true),cloudSet('scripts',scripts,true)]);
+        sFbStatus('✅ เชื่อมต่อสำเร็จ + อัพโหลดข้อมูลปัจจุบันแล้ว');
+      } else sFbStatus('❌ ไม่สามารถเชื่อมต่อได้ ตรวจสอบ URL และ Rules');
+    }catch(e){sFbStatus('❌ เชื่อมต่อไม่ได้: '+e.message)}
+  };
   const [toast,sToast]=useState(null);
 
   const showToast=(msg)=>{sToast(msg);setTimeout(()=>sToast(null),2500)};
@@ -636,10 +683,36 @@ function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,s
 
     {tab==='settings'&&<div className="card">
       <h3 style={{fontSize:16,fontWeight:700,marginBottom:16}}>⚙️ ตั้งค่าระบบ</h3>
-      <div style={{padding:16,background:'var(--sf2)',borderRadius:8,marginBottom:14}}>
-        <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>☁️ Cloud Storage — บันทึกอัตโนมัติ</div>
-        <div style={{fontSize:13,color:'var(--tx2)'}}>ทุกการแก้ไขจะบันทึกขึ้น Cloud Storage โดยอัตโนมัติ ข้อมูลคงอยู่ถาวร เปิดจากที่ไหนก็เห็นข้อมูลเดียวกัน (คอร์สและผู้ใช้ = ข้อมูลกลาง, ความคืบหน้า = ส่วนตัว)</div>
+
+      <div style={{padding:16,border:'2px solid var(--ac)',borderRadius:8,background:'var(--acbg)',marginBottom:14}}>
+        <div style={{fontSize:14,fontWeight:700,marginBottom:8,color:'var(--ac)'}}>🔗 Firebase — เชื่อมต่อฐานข้อมูลออนไลน์</div>
+        <div style={{fontSize:12,color:'var(--tx2)',marginBottom:10,lineHeight:1.7}}>
+          เชื่อมต่อ Firebase เพื่อให้ข้อมูล sync ทุกเครื่องแบบ real-time<br/>
+          {getFbUrl()?<span style={{color:'var(--gn)',fontWeight:600}}>✅ เชื่อมต่อแล้ว: {getFbUrl().slice(0,50)}...</span>:<span style={{color:'var(--or)',fontWeight:600}}>⚠️ ยังไม่ได้เชื่อมต่อ — ข้อมูลจะเก็บในเครื่องนี้เท่านั้น</span>}
+        </div>
+        <div style={{fontSize:12,color:'var(--tx2)',marginBottom:10,lineHeight:1.8,background:'var(--sf)',padding:12,borderRadius:6,border:'1px solid var(--bd)'}}>
+          <b>วิธี setup Firebase (ฟรี):</b><br/>
+          1. ไปที่ <b>console.firebase.google.com</b> → สร้าง Project ใหม่<br/>
+          2. เลือก <b>Realtime Database</b> → Create Database → เลือก Region ใกล้ที่สุด<br/>
+          3. ตั้ง <b>Rules</b> เป็น: {`{"rules":{".read":true,".write":true}}`}<br/>
+          4. คัดลอก URL เช่น <b>https://your-project-default-rtdb.firebaseio.com</b><br/>
+          5. วาง URL ด้านล่าง แล้วกด ทดสอบ
+        </div>
+        <div style={{display:'flex',gap:8,marginBottom:6}}>
+          <input value={fbUrl} onChange={e=>sFbUrl(e.target.value)} placeholder="https://your-project-default-rtdb.firebaseio.com" style={{flex:1,padding:'10px 12px',background:'var(--sf)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:13}}/>
+          <button className="btn bp bs" onClick={()=>testFb(fbUrl)}>🔗 ทดสอบ</button>
+          {getFbUrl()&&<button className="btn bg bs" onClick={()=>{setFbUrl('');sFbUrl('');sFbStatus('🔌 ตัดการเชื่อมต่อแล้ว')}}>✕</button>}
+        </div>
+        {fbStatus&&<div style={{fontSize:12,marginTop:6,color:fbStatus.startsWith('✅')?'var(--gn)':fbStatus.startsWith('⏳')?'var(--bl)':'var(--rd)',fontWeight:600}}>{fbStatus}</div>}
       </div>
+
+      <div style={{padding:16,background:'var(--sf2)',borderRadius:8,marginBottom:14}}>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:4}}>☁️ สถานะการเก็บข้อมูล</div>
+        <div style={{fontSize:13,color:'var(--tx2)'}}>
+          {getFbUrl()?'✅ Firebase — ข้อมูลจะ sync ทุกเครื่องอัตโนมัติ (คอร์ส, ผู้ใช้, Script, Resources = กลาง / ความคืบหน้า = ส่วนตัว)':'⚠️ localStorage — ข้อมูลเก็บในเครื่องนี้เท่านั้น ต้องเชื่อมต่อ Firebase เพื่อให้ทุกคนเห็นข้อมูลเดียวกัน'}
+        </div>
+      </div>
+
       <div style={{padding:16,border:'1px solid var(--rd)',borderRadius:8,background:'var(--rdbg)'}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--rd)'}}>🗑️ รีเซ็ตข้อมูลทั้งหมด</div>
         <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>คืนค่าคอร์ส บทเรียน Quiz และผู้ใช้ทั้งหมดกลับเป็นค่าเริ่มต้น (ข้อมูลที่แก้ไขจะหายหมด)</div>
