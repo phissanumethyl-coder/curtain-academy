@@ -371,7 +371,7 @@ async function cloudGet(key, fallback, shared) {
       const path = shared ? 'shared' : 'personal';
       const resp = await fetch(fb + '/' + path + '/' + key + '.json', {signal: AbortSignal.timeout(5000)});
       if (resp.ok) { const data = await resp.json(); if (data !== null && data !== undefined) return data; }
-    } catch(e) {}
+    } catch(e) { console.log('Firebase GET fail:', key, e.message); }
   }
   // 2. Try window.storage (Claude.ai)
   if (HAS_CLOUD) {
@@ -389,22 +389,47 @@ async function cloudGet(key, fallback, shared) {
 }
 
 async function cloudSet(key, val, shared) {
+  const results = {fb:false, ls:false};
   // 1. Save to Firebase
   const fb = getFbUrl();
   if (fb) {
     try {
-      await fetch(fb + '/' + path_for(shared) + '/' + key + '.json', {
+      const resp = await fetch(fb + '/' + (shared?'shared':'personal') + '/' + key + '.json', {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(val), signal: AbortSignal.timeout(5000)
       });
-    } catch(e) {}
+      if(resp.ok) results.fb = true;
+    } catch(e) { console.log('Firebase SET fail:', key, e.message); }
   }
   // 2. Save to window.storage
   if (HAS_CLOUD) { try { await window.storage.set(key, JSON.stringify(val), shared); } catch(e) {} }
   // 3. Save to localStorage
-  try { localStorage.setItem('ca_' + key, JSON.stringify(val)); } catch(e) {}
+  try { localStorage.setItem('ca_' + key, JSON.stringify(val)); results.ls = true; } catch(e) {}
+  return results;
 }
-function path_for(shared) { return shared ? 'shared' : 'personal'; }
+
+// Force push ALL data to Firebase
+async function forcePushToFirebase(courses, users, resources, scripts) {
+  const fb = getFbUrl();
+  if (!fb) return {ok:false, msg:'ไม่มี Firebase URL'};
+  const errors = [];
+  const items = [
+    ['shared/courses', courses], ['shared/users', users],
+    ['shared/resources', resources], ['shared/scripts', scripts]
+  ];
+  for (const [path, data] of items) {
+    try {
+      const r = await fetch(fb + '/' + path + '.json', {
+        method: 'PUT', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data), signal: AbortSignal.timeout(8000)
+      });
+      if (!r.ok) errors.push(path + ': ' + r.status);
+    } catch(e) { errors.push(path + ': ' + e.message); }
+  }
+  if (errors.length === 0) return {ok:true, msg:'✅ Push สำเร็จ! ข้อมูลทั้งหมดขึ้น Firebase แล้ว'};
+  return {ok:false, msg:'❌ Error: ' + errors.join(', ')};
+}
+
 
 function lsGet(key, fallback) { return fallback; }
 function lsSet(key, val) {}
@@ -580,12 +605,29 @@ function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,s
     sFbStatus('⏳ กำลังทดสอบ...');
     try{
       const r=await fetch(url+'/.json',{signal:AbortSignal.timeout(5000)});
-      if(r.ok){setFbUrl(url);sFbStatus('✅ เชื่อมต่อสำเร็จ! ข้อมูลจะ sync ทุกเครื่อง');
-        // Push current data to Firebase
-        await Promise.all([cloudSet('courses',courses,true),cloudSet('users',users,true),cloudSet('resources',resources,true),cloudSet('scripts',scripts,true)]);
-        sFbStatus('✅ เชื่อมต่อสำเร็จ + อัพโหลดข้อมูลปัจจุบันแล้ว');
-      } else sFbStatus('❌ ไม่สามารถเชื่อมต่อได้ ตรวจสอบ URL และ Rules');
+      if(r.ok){setFbUrl(url);sFbStatus('✅ เชื่อมต่อสำเร็จ!');
+      } else sFbStatus('❌ ไม่สามารถเชื่อมต่อได้ (Status: '+r.status+') — ตรวจสอบ Rules ว่าเป็น read/write: true');
     }catch(e){sFbStatus('❌ เชื่อมต่อไม่ได้: '+e.message)}
+  };
+  const pushFb=async()=>{
+    sFbStatus('⏳ กำลัง Push ข้อมูลขึ้น Firebase...');
+    const result = await forcePushToFirebase(courses,users,resources,scripts);
+    sFbStatus(result.msg);
+  };
+  const pullFb=async()=>{
+    sFbStatus('⏳ กำลังดึงข้อมูลจาก Firebase...');
+    try{
+      const fb=getFbUrl();
+      const r=await fetch(fb+'/shared.json',{signal:AbortSignal.timeout(5000)});
+      if(!r.ok){sFbStatus('❌ ดึงข้อมูลไม่ได้');return}
+      const d=await r.json();
+      if(!d){sFbStatus('⚠️ Firebase ว่าง ยังไม่มีข้อมูล — ให้ Admin กด Push ก่อน');return}
+      if(d.courses)setCourses(d.courses);
+      if(d.users)setUsers(d.users);
+      if(d.resources)setResources(d.resources);
+      if(d.scripts)setScripts(d.scripts);
+      sFbStatus('✅ ดึงข้อมูลสำเร็จ! โหลดข้อมูลจาก Firebase แล้ว');
+    }catch(e){sFbStatus('❌ '+e.message)}
   };
   const [toast,sToast]=useState(null);
 
@@ -704,6 +746,15 @@ function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,s
           {getFbUrl()&&<button className="btn bg bs" onClick={()=>{setFbUrl('');sFbUrl('');sFbStatus('🔌 ตัดการเชื่อมต่อแล้ว')}}>✕</button>}
         </div>
         {fbStatus&&<div style={{fontSize:12,marginTop:6,color:fbStatus.startsWith('✅')?'var(--gn)':fbStatus.startsWith('⏳')?'var(--bl)':'var(--rd)',fontWeight:600}}>{fbStatus}</div>}
+
+        {getFbUrl()&&<div style={{display:'flex',gap:8,marginTop:10}}>
+          <button className="btn bp bs" onClick={pushFb} style={{flex:1}}>⬆️ Push ข้อมูลขึ้น Firebase</button>
+          <button className="btn bg bs" onClick={pullFb} style={{flex:1}}>⬇️ Pull ข้อมูลจาก Firebase</button>
+        </div>}
+        {getFbUrl()&&<div style={{fontSize:11,color:'var(--tx3)',marginTop:6,lineHeight:1.6}}>
+          ⬆️ <b>Push</b> = อัพโหลดข้อมูลจากเครื่องนี้ขึ้น Firebase (ใช้ตอน Admin แก้ข้อมูลแล้วอยากให้เครื่องอื่นเห็น)<br/>
+          ⬇️ <b>Pull</b> = ดึงข้อมูลล่าสุดจาก Firebase มาใช้ (ใช้ตอนเปิดเครื่องใหม่แล้วข้อมูลยังเก่า)
+        </div>}
       </div>
 
       <div style={{padding:16,background:'var(--sf2)',borderRadius:8,marginBottom:14}}>
