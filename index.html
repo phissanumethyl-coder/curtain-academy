@@ -334,19 +334,38 @@ const LOGO_HORIZ = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My
 
 
 // Convert sharing URLs to direct/embeddable image URLs
+function extractGDriveId(url) {
+  if (!url) return null;
+  let m = url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
+  if (m) return m[1];
+  m = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
+  if (m) return m[1];
+  m = url.match(/drive\.google\.com\/uc\?.*id=([^&\s]+)/);
+  if (m) return m[1];
+  return null;
+}
+
 function toDirectImageUrl(url) {
   if (!url) return url;
-  // Google Drive: https://drive.google.com/file/d/FILE_ID/view?...
-  let m = url.match(/drive\.google\.com\/file\/d\/([^\/\?]+)/);
-  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
-  // Google Drive open: https://drive.google.com/open?id=FILE_ID
-  m = url.match(/drive\.google\.com\/open\?id=([^&\s]+)/);
-  if (m) return 'https://lh3.googleusercontent.com/d/' + m[1];
-  // Google Drive uc: already direct
-  if (url.includes('drive.google.com/uc')) return url;
+  const gid = extractGDriveId(url);
+  if (gid) return 'https://drive.google.com/thumbnail?id=' + gid + '&sz=w1000';
   // Dropbox: change dl=0 to dl=1
   if (url.includes('dropbox.com')) return url.replace('dl=0','dl=1').replace('www.dropbox.com','dl.dropboxusercontent.com');
   return url;
+}
+
+// Image component with Google Drive fallback
+function SmartImg({url, alt, style, className}) {
+  const [src, setSrc] = React.useState(toDirectImageUrl(url));
+  const [tried, setTried] = React.useState(0);
+  const onError = () => {
+    const gid = extractGDriveId(url);
+    if (!gid) return;
+    if (tried === 0) { setSrc('https://lh3.googleusercontent.com/d/' + gid); setTried(1); }
+    else if (tried === 1) { setSrc('https://drive.google.com/uc?export=view&id=' + gid); setTried(2); }
+  };
+  React.useEffect(() => { setSrc(toDirectImageUrl(url)); setTried(0); }, [url]);
+  return <img src={src} alt={alt||''} style={style} className={className} onError={onError}/>;
 }
 
 // === Cloud Storage with Firebase Realtime Database ===
@@ -791,9 +810,9 @@ function ADB({courses,setCourses,users,setUsers,resources,setResources,scripts,s
       </div>
 
       <div style={{padding:16,border:'1px solid var(--rd)',borderRadius:8,background:'var(--rdbg)'}}>
-        <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--rd)'}}>🗑️ รีเซ็ตข้อมูลทั้งหมด</div>
-        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>คืนค่าคอร์ส บทเรียน Quiz และผู้ใช้ทั้งหมดกลับเป็นค่าเริ่มต้น (ข้อมูลที่แก้ไขจะหายหมด)</div>
-        <button className="btn btn-danger bs" type="button" onClick={async()=>{if(!confirm('⚠️ ยืนยันรีเซ็ตข้อมูลทั้งหมด?\nคอร์ส บทเรียน Quiz ผู้ใช้ จะกลับเป็นค่าเริ่มต้น\nหน้าเว็บจะ reload ใหม่'))return;showToast('⏳ กำลังรีเซ็ต...');const fb=getFbUrl();if(fb){try{await fetch(fb+'/shared.json',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({courses:LEVELS_DATA,users:USERS_DATA,resources:RES_DEFAULT,scripts:SCRIPTS_DATA}),signal:AbortSignal.timeout(8000)});await fetch(fb+'/personal.json',{method:'DELETE',signal:AbortSignal.timeout(8000)})}catch(e){console.log('reset fb err',e)}}try{const fbUrl=localStorage.getItem('ca_firebase_url');const sess=localStorage.getItem('ca_session');Object.keys(localStorage).filter(k=>k.startsWith('ca_')).forEach(k=>localStorage.removeItem(k));if(fbUrl)localStorage.setItem('ca_firebase_url',fbUrl);if(sess)localStorage.setItem('ca_session',sess)}catch(e){}setTimeout(()=>window.location.reload(),500)}}>🗑️ รีเซ็ตทั้งหมด</button>
+        <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--rd)'}}>🗑️ รีเซ็ตความคืบหน้า</div>
+        <div style={{fontSize:13,color:'var(--tx2)',marginBottom:12}}>ล้างความคืบหน้าการเรียนและคะแนน Quiz ของทุกคนกลับเป็น 0% (คอร์ส บทเรียน ผู้ใช้ Script Resources จะไม่ถูกลบ)</div>
+        <button className="btn btn-danger bs" type="button" onClick={async()=>{if(!confirm('⚠️ ยืนยันรีเซ็ตความคืบหน้าทั้งหมด?\nความคืบหน้าและคะแนน Quiz จะกลับเป็น 0%'))return;showToast('⏳ กำลังรีเซ็ต...');const fb=getFbUrl();if(fb){try{await fetch(fb+'/personal.json',{method:'DELETE',signal:AbortSignal.timeout(8000)})}catch(e){}}try{localStorage.removeItem('ca_prog');localStorage.removeItem('ca_scores')}catch(e){}setProg({});setScores({});showToast('✅ รีเซ็ตความคืบหน้าเรียบร้อย')}}>🗑️ รีเซ็ตความคืบหน้า</button>
       </div>
       <div style={{padding:16,border:'1px solid var(--bl)',borderRadius:8,background:'var(--blbg)',marginTop:14}}>
         <div style={{fontSize:14,fontWeight:600,marginBottom:4,color:'var(--bl)'}}>📤 Export ข้อมูล</div>
@@ -977,7 +996,7 @@ function LessonBlockEditor({les,onChange}) {
         {b.type==='image'&&<div style={{border:'1px dashed var(--bd)',borderRadius:8,padding:10,background:'var(--sf)'}}>
           <input value={b.url||''} onChange={e=>updateBlock(bi,'url',e.target.value)} placeholder="วาง URL รูป หรือ Google Drive link" style={{width:'100%',padding:'8px 10px',background:'var(--sf2)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:12,marginBottom:4}}/>
           <input value={b.caption||''} onChange={e=>updateBlock(bi,'caption',e.target.value)} placeholder="คำอธิบายรูป (ไม่บังคับ)" style={{width:'100%',padding:'6px 10px',background:'var(--sf2)',border:'1px solid var(--bd)',borderRadius:6,color:'var(--tx)',fontFamily:'var(--f)',fontSize:11}}/>
-          {b.url&&<div style={{marginTop:6,borderRadius:4,overflow:'hidden'}}><img src={toDirectImageUrl(b.url)} style={{maxWidth:'100%',maxHeight:120,objectFit:'contain',display:'block'}} onError={e=>{e.target.style.display='none'}}/></div>}
+          {b.url&&<div style={{marginTop:6,borderRadius:4,overflow:'hidden'}}><SmartImg url={b.url} style={{maxWidth:'100%',maxHeight:120,objectFit:'contain',display:'block'}}/></div>}
         </div>}
 
         {b.type==='youtube'&&<div style={{border:'1px dashed var(--bd)',borderRadius:8,padding:10,background:'var(--sf)'}}>
@@ -1031,7 +1050,7 @@ function LV({les,lvl,prog,onDn,onBack,onNx}) {
 
   {blocks.map((b,i)=><div key={i}>
     {b.type==='text'&&b.value&&<div className="cb">{b.value.split('\n').map((l,j)=>l.trim()===''?<br key={j}/>:<div key={j} style={{marginBottom:2}}>{l}</div>)}</div>}
-    {b.type==='image'&&b.url&&<div className="media-block"><img src={toDirectImageUrl(b.url)} alt={b.caption||les.title}/>{b.caption&&<div className="caption">{b.caption}</div>}</div>}
+    {b.type==='image'&&b.url&&<div className="media-block"><SmartImg url={b.url} alt={b.caption||les.title}/>{b.caption&&<div className="caption">{b.caption}</div>}</div>}
     {b.type==='youtube'&&b.url&&<div className="media-block"><div className="vid-wrap"><iframe src={`https://www.youtube.com/embed/${getYTid(b.url)||''}`} allow="accelerometer;autoplay;clipboard-write;encrypted-media;gyroscope;picture-in-picture" allowFullScreen/></div>{b.caption&&<div className="caption">{b.caption}</div>}</div>}
   </div>)}
 
